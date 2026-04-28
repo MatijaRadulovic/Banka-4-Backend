@@ -98,9 +98,10 @@ func main() {
 			service.NewTaxService,
 			handler.NewTaxHandler,
 			service.NewTaxScheduler,
-			repository.NewOtcContractRepository,
-			service.NewOtcContractService,
-			handler.NewOtcContractHandler,
+			repository.NewOtcOfferRepository,
+			repository.NewOtcOptionContractRepository,
+			service.NewOtcOfferService,
+			handler.NewOtcOfferHandler,
 		),
 		fx.Invoke(func(cfg *config.Configuration) error {
 			return logging.Init(cfg.Env)
@@ -128,7 +129,8 @@ func main() {
 				&model.FuturesContract{},
 				&model.AccumulatedTax{},
 				&model.TaxCollection{},
-				&model.OtcContract{},
+				&model.OtcOffer{},
+				&model.OtcOptionContract{},
 			)
 		}),
 		fx.Invoke(func(lc fx.Lifecycle, svc *service.StockService) {

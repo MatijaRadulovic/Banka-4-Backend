@@ -25,7 +25,7 @@ import (
 	_ "github.com/RAF-SI-2025/Banka-4-Backend/services/trading-service/docs"
 )
 
-func NewServer(lc fx.Lifecycle, cfg *config.Configuration, healthHandler *handler.HealthHandler, taxHandler *handler.TaxHandler, exchangeHandler *handler.ExchangeHandler, orderHandler *handler.OrderHandler, portfolioHandler *handler.PortfolioHandler, listingHandler *handler.ListingHandler, verifier auth.TokenVerifier, permProvider auth.PermissionProvider, userClient client.UserServiceClient, otcHandler *handler.OtcContractHandler) {
+func NewServer(lc fx.Lifecycle, cfg *config.Configuration, healthHandler *handler.HealthHandler, taxHandler *handler.TaxHandler, exchangeHandler *handler.ExchangeHandler, orderHandler *handler.OrderHandler, portfolioHandler *handler.PortfolioHandler, listingHandler *handler.ListingHandler, verifier auth.TokenVerifier, permProvider auth.PermissionProvider, userClient client.UserServiceClient, otcHandler *handler.OtcOfferHandler) {
 	r := gin.New()
 
 	InitRouter(r, cfg)
@@ -58,7 +58,7 @@ func InitRouter(r *gin.Engine, cfg *config.Configuration) {
 	validator.RegisterValidators()
 }
 
-func SetupRoutes(r *gin.Engine, healthHandler *handler.HealthHandler, taxHandler *handler.TaxHandler, exchangeHandler *handler.ExchangeHandler, orderHandler *handler.OrderHandler, portfolioHandler *handler.PortfolioHandler, listingHandler *handler.ListingHandler, verifier auth.TokenVerifier, permProvider auth.PermissionProvider, userClient client.UserServiceClient, otcHandler *handler.OtcContractHandler) {
+func SetupRoutes(r *gin.Engine, healthHandler *handler.HealthHandler, taxHandler *handler.TaxHandler, exchangeHandler *handler.ExchangeHandler, orderHandler *handler.OrderHandler, portfolioHandler *handler.PortfolioHandler, listingHandler *handler.ListingHandler, verifier auth.TokenVerifier, permProvider auth.PermissionProvider, userClient client.UserServiceClient, otcHandler *handler.OtcOfferHandler) {
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	api := r.Group("/api")
@@ -143,12 +143,23 @@ func SetupRoutes(r *gin.Engine, healthHandler *handler.HealthHandler, taxHandler
 		otc := api.Group("/otc")
 		otc.Use(authMw, auth.RequirePermission(permission.Trading))
 		{
-			otc.GET("/offers", otcHandler.GetMyOffers)
-			otc.POST("/offers", auth.RequireIdentityType(auth.IdentityClient), otcHandler.CreateOffer)
-			otc.PATCH("/offers/:id/accept", auth.RequireIdentityType(auth.IdentityClient), otcHandler.AcceptOffer)
-			otc.PATCH("/offers/:id/reject", auth.RequireIdentityType(auth.IdentityClient), otcHandler.RejectOffer)
-			otc.POST("/offers/:id/counter", auth.RequireIdentityType(auth.IdentityClient), otcHandler.CounterOffer)
-			otc.PATCH("/offers/:id/bank-approve", middleware.RequireSupervisor(userClient), otcHandler.ApproveBankOffer)
+			// Stranica: Aktivne ponude — pregovori u kojima učestvuje ulogovani korisnik.
+			otc.GET("/offers/active", otcHandler.GetMyActiveOffers)
+
+			// Stranica: Sklopljeni ugovori — opcioni ugovori (CALL) sklopljeni iz prihvaćenih ponuda.
+			otc.GET("/contracts", otcHandler.GetMyOptionContracts)
+
+			// Kreiranje nove ponude — radi je kupac (klijent sa permisijom za trgovinu).
+			otc.POST("/offers", otcHandler.CreateOffer)
+
+			// Kontraponuda — bilo koja strana ažurira parametre. PUT jer je update, ne insert.
+			otc.PUT("/offers/:id/counter", otcHandler.SendCounterOffer)
+
+			// Prihvatanje — strana suprotna od ModifiedBy (kreira opcioni ugovor + premium transfer).
+			otc.PATCH("/offers/:id/accept", otcHandler.AcceptOffer)
+
+			// Odustajanje — bilo koja strana može odustati od pregovora.
+			otc.PATCH("/offers/:id/reject", otcHandler.RejectOffer)
 		}
 	}
 }
