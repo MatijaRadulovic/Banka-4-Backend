@@ -16,9 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// ---------------------------------------------------------------------------
-// In-memory fakes
-// ---------------------------------------------------------------------------
+// --- in-memory fakes ---
 
 type fakeOtcOfferRepo struct {
 	offers map[uint]*model.OtcOffer
@@ -28,17 +26,30 @@ type fakeOtcOfferRepo struct {
 func newFakeOtcOfferRepo() *fakeOtcOfferRepo {
 	return &fakeOtcOfferRepo{offers: make(map[uint]*model.OtcOffer), nextID: 1}
 }
+
 func (r *fakeOtcOfferRepo) Create(_ context.Context, o *model.OtcOffer) error {
-	o.OtcOfferID = r.nextID; r.nextID++; cp := *o; r.offers[o.OtcOfferID] = &cp; return nil
+	o.OtcOfferID = r.nextID
+	r.nextID++
+	cp := *o
+	r.offers[o.OtcOfferID] = &cp
+	return nil
 }
+
 func (r *fakeOtcOfferRepo) Save(_ context.Context, o *model.OtcOffer) error {
-	cp := *o; r.offers[o.OtcOfferID] = &cp; return nil
+	cp := *o
+	r.offers[o.OtcOfferID] = &cp
+	return nil
 }
+
 func (r *fakeOtcOfferRepo) FindByID(_ context.Context, id uint) (*model.OtcOffer, error) {
 	o, ok := r.offers[id]
-	if !ok { return nil, nil }
-	cp := *o; return &cp, nil
+	if !ok {
+		return nil, nil
+	}
+	cp := *o
+	return &cp, nil
 }
+
 func (r *fakeOtcOfferRepo) FindActiveForUser(_ context.Context, userID uint) ([]model.OtcOffer, error) {
 	var out []model.OtcOffer
 	for _, o := range r.offers {
@@ -48,17 +59,20 @@ func (r *fakeOtcOfferRepo) FindActiveForUser(_ context.Context, userID uint) ([]
 	}
 	return out, nil
 }
+
 func (r *fakeOtcOfferRepo) FindActiveBySellerAndStock(_ context.Context, sellerID, stockID uint, excludeID *uint) ([]model.OtcOffer, error) {
 	var out []model.OtcOffer
 	for _, o := range r.offers {
-		if o.Status != model.OtcOfferStatusActive || o.SellerID != sellerID || o.StockID != stockID { continue }
-		if excludeID != nil && o.OtcOfferID == *excludeID { continue }
+		if o.Status != model.OtcOfferStatusActive || o.SellerID != sellerID || o.StockID != stockID {
+			continue
+		}
+		if excludeID != nil && o.OtcOfferID == *excludeID {
+			continue
+		}
 		out = append(out, *o)
 	}
 	return out, nil
 }
-
-// ---------------------------------------------------------------------------
 
 type fakeOtcContractRepo struct {
 	contracts map[uint]*model.OtcOptionContract
@@ -68,24 +82,40 @@ type fakeOtcContractRepo struct {
 func newFakeOtcContractRepo() *fakeOtcContractRepo {
 	return &fakeOtcContractRepo{contracts: make(map[uint]*model.OtcOptionContract), nextID: 1}
 }
+
 func (r *fakeOtcContractRepo) Create(_ context.Context, c *model.OtcOptionContract) error {
-	c.OtcOptionContractID = r.nextID; r.nextID++; cp := *c; r.contracts[c.OtcOptionContractID] = &cp; return nil
+	c.OtcOptionContractID = r.nextID
+	r.nextID++
+	cp := *c
+	r.contracts[c.OtcOptionContractID] = &cp
+	return nil
 }
+
 func (r *fakeOtcContractRepo) Save(_ context.Context, c *model.OtcOptionContract) error {
-	cp := *c; r.contracts[c.OtcOptionContractID] = &cp; return nil
+	cp := *c
+	r.contracts[c.OtcOptionContractID] = &cp
+	return nil
 }
+
 func (r *fakeOtcContractRepo) FindByID(_ context.Context, id uint) (*model.OtcOptionContract, error) {
 	c, ok := r.contracts[id]
-	if !ok { return nil, nil }
-	cp := *c; return &cp, nil
+	if !ok {
+		return nil, nil
+	}
+	cp := *c
+	return &cp, nil
 }
+
 func (r *fakeOtcContractRepo) FindForUser(_ context.Context, userID uint) ([]model.OtcOptionContract, error) {
 	var out []model.OtcOptionContract
 	for _, c := range r.contracts {
-		if c.BuyerID == userID || c.SellerID == userID { out = append(out, *c) }
+		if c.BuyerID == userID || c.SellerID == userID {
+			out = append(out, *c)
+		}
 	}
 	return out, nil
 }
+
 func (r *fakeOtcContractRepo) FindActiveBySellerAndStock(_ context.Context, sellerID, stockID uint, now time.Time) ([]model.OtcOptionContract, error) {
 	var out []model.OtcOptionContract
 	for _, c := range r.contracts {
@@ -95,8 +125,6 @@ func (r *fakeOtcContractRepo) FindActiveBySellerAndStock(_ context.Context, sell
 	}
 	return out, nil
 }
-
-// ---------------------------------------------------------------------------
 
 type fakeOtcAssetOwnershipRepo struct {
 	ownerships     map[string]*model.AssetOwnership
@@ -110,52 +138,58 @@ func newFakeOtcAssetOwnershipRepo() *fakeOtcAssetOwnershipRepo {
 	}
 }
 
-func otcOwnershipKey(userID uint, ot model.OwnerType, assetID uint) string {
-	return fmt.Sprintf("%d:%s:%d", userID, ot, assetID)
+func otcOwnershipKey(id uint, ot model.OwnerType, assetID uint) string {
+	return fmt.Sprintf("%d:%s:%d", id, ot, assetID)
 }
 
 func (r *fakeOtcAssetOwnershipRepo) seedOwnership(o model.AssetOwnership) {
 	r.ownerships[otcOwnershipKey(o.UserId, o.OwnerType, o.AssetID)] = &o
 }
 
-func (r *fakeOtcAssetOwnershipRepo) FindByIdentity(_ context.Context, userID uint, ot model.OwnerType) ([]model.AssetOwnership, error) {
+func (r *fakeOtcAssetOwnershipRepo) FindByIdentity(_ context.Context, id uint, ot model.OwnerType) ([]model.AssetOwnership, error) {
 	var out []model.AssetOwnership
 	for _, v := range r.ownerships {
-		if v.UserId == userID && v.OwnerType == ot { out = append(out, *v) }
+		if v.UserId == id && v.OwnerType == ot {
+			out = append(out, *v)
+		}
 	}
 	return out, nil
 }
 
 func (r *fakeOtcAssetOwnershipRepo) Upsert(_ context.Context, o *model.AssetOwnership) error {
-	r.ownerships[otcOwnershipKey(o.UserId, o.OwnerType, o.AssetID)] = o; return nil
+	r.ownerships[otcOwnershipKey(o.UserId, o.OwnerType, o.AssetID)] = o
+	return nil
 }
 
-func (r *fakeOtcAssetOwnershipRepo) IncreaseReservedAmount(_ context.Context, userID uint, ot model.OwnerType, assetID uint, delta float64) error {
+func (r *fakeOtcAssetOwnershipRepo) IncreaseReservedAmount(_ context.Context, id uint, ot model.OwnerType, assetID uint, delta float64) error {
 	r.reservedDeltas[assetID] += delta
-	if o, ok := r.ownerships[otcOwnershipKey(userID, ot, assetID)]; ok {
+	key := otcOwnershipKey(id, ot, assetID)
+	if o, ok := r.ownerships[key]; ok {
 		o.ReservedAmount += delta
 	}
 	return nil
 }
 
-// ---------------------------------------------------------------------------
+type fakeOtcStockRepo struct {
+	stocks []model.Stock
+}
 
-type fakeOtcStockRepo struct{ stocks []model.Stock }
-
-func (r *fakeOtcStockRepo) Upsert(_ context.Context, _ *model.Stock) error  { return nil }
+func (r *fakeOtcStockRepo) Upsert(_ context.Context, _ *model.Stock) error   { return nil }
 func (r *fakeOtcStockRepo) FindAll(_ context.Context) ([]model.Stock, error) { return r.stocks, nil }
 func (r *fakeOtcStockRepo) Count(_ context.Context) (int64, error)           { return int64(len(r.stocks)), nil }
 func (r *fakeOtcStockRepo) FindByAssetIDs(_ context.Context, ids []uint) ([]model.Stock, error) {
 	idSet := make(map[uint]bool, len(ids))
-	for _, id := range ids { idSet[id] = true }
+	for _, id := range ids {
+		idSet[id] = true
+	}
 	var out []model.Stock
 	for _, s := range r.stocks {
-		if idSet[s.AssetID] || idSet[s.StockID] { out = append(out, s) }
+		if idSet[s.AssetID] || idSet[s.StockID] {
+			out = append(out, s)
+		}
 	}
 	return out, nil
 }
-
-// ---------------------------------------------------------------------------
 
 type fakeOtcBankingClient struct {
 	accountErr     error
@@ -163,12 +197,17 @@ type fakeOtcBankingClient struct {
 }
 
 func (f *fakeOtcBankingClient) GetAccountByNumber(_ context.Context, _ string) (*pb.GetAccountByNumberResponse, error) {
-	if f.accountErr != nil { return nil, f.accountErr }
+	if f.accountErr != nil {
+		return nil, f.accountErr
+	}
 	return &pb.GetAccountByNumberResponse{AccountNumber: "acc", AvailableBalance: 1_000_000}, nil
 }
+
 func (f *fakeOtcBankingClient) CreatePaymentWithoutVerification(_ context.Context, _ *pb.CreatePaymentRequest) (*pb.CreatePaymentResponse, error) {
-	f.paymentsCalled++; return &pb.CreatePaymentResponse{PaymentId: 1}, nil
+	f.paymentsCalled++
+	return &pb.CreatePaymentResponse{PaymentId: 1}, nil
 }
+
 func (f *fakeOtcBankingClient) HasActiveLoan(_ context.Context, _ uint64) (*pb.HasActiveLoanResponse, error) {
 	return &pb.HasActiveLoanResponse{}, nil
 }
@@ -185,11 +224,10 @@ func (f *fakeOtcBankingClient) GetAccountCurrency(_ context.Context, _ string) (
 	return "RSD", nil
 }
 
+// compile-time interface check
 var _ client.BankingClient = (*fakeOtcBankingClient)(nil)
 
-// ---------------------------------------------------------------------------
-// Constants and helpers
-// ---------------------------------------------------------------------------
+// --- test constants ---
 
 const (
 	otcBuyerID  uint = 10
@@ -200,6 +238,7 @@ const (
 
 var otcFutureDate = time.Now().Add(30 * 24 * time.Hour)
 
+// ctxForOtcUser creates an authenticated context for the given identity ID.
 func ctxForOtcUser(id uint) context.Context {
 	cid := id
 	return auth.SetAuthOnContext(context.Background(), &auth.AuthContext{
@@ -210,15 +249,22 @@ func ctxForOtcUser(id uint) context.Context {
 	})
 }
 
+// --- test setup ---
+
 func newOtcTestService(t *testing.T) (*OtcOfferService, *fakeOtcOfferRepo, *fakeOtcContractRepo, *fakeOtcAssetOwnershipRepo, *fakeOtcBankingClient) {
 	t.Helper()
+
 	offerRepo := newFakeOtcOfferRepo()
 	contractRepo := newFakeOtcContractRepo()
 	ownershipRepo := newFakeOtcAssetOwnershipRepo()
-	stockRepo := &fakeOtcStockRepo{stocks: []model.Stock{{StockID: otcStockID, AssetID: otcAssetID}}}
+	stockRepo := &fakeOtcStockRepo{
+		stocks: []model.Stock{
+			{StockID: otcStockID, AssetID: otcAssetID},
+		},
+	}
 	banking := &fakeOtcBankingClient{}
 
-	// Seller owns 100 public shares.
+	// Seller has 100 public shares.
 	ownershipRepo.seedOwnership(model.AssetOwnership{
 		UserId:       otcSellerID,
 		OwnerType:    model.OwnerTypeClient,
@@ -247,13 +293,13 @@ func otcCreateOffer(t *testing.T, svc *OtcOfferService, amount int) *model.OtcOf
 	return offer
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
+// --- tests ---
 
 func TestOtcCreateOffer_Success(t *testing.T) {
 	svc, offerRepo, _, _, _ := newOtcTestService(t)
+
 	offer := otcCreateOffer(t, svc, 10)
+
 	assert.Equal(t, otcBuyerID, offer.BuyerID)
 	assert.Equal(t, otcSellerID, offer.SellerID)
 	assert.Equal(t, 10, offer.Amount)
@@ -264,33 +310,54 @@ func TestOtcCreateOffer_Success(t *testing.T) {
 
 func TestOtcCreateOffer_SelfOffer_ReturnsError(t *testing.T) {
 	svc, _, _, _, _ := newOtcTestService(t)
-	_, err := svc.CreateOffer(ctxForOtcUser(otcBuyerID), dto.CreateOtcOfferRequest{
-		SellerID: otcBuyerID, StockID: otcStockID, Amount: 10,
-		PricePerStock: 50, Premium: 5, SettlementDate: otcFutureDate,
+	ctx := ctxForOtcUser(otcBuyerID)
+
+	_, err := svc.CreateOffer(ctx, dto.CreateOtcOfferRequest{
+		SellerID:           otcBuyerID, // same as caller
+		StockID:            otcStockID,
+		Amount:             10,
+		PricePerStock:      50,
+		Premium:            5,
+		SettlementDate:     otcFutureDate,
 		BuyerAccountNumber: "acc",
 	})
+
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "yourself")
 }
 
 func TestOtcCreateOffer_PastSettlementDate_ReturnsError(t *testing.T) {
 	svc, _, _, _, _ := newOtcTestService(t)
-	_, err := svc.CreateOffer(ctxForOtcUser(otcBuyerID), dto.CreateOtcOfferRequest{
-		SellerID: otcSellerID, StockID: otcStockID, Amount: 10,
-		PricePerStock: 50, Premium: 5, SettlementDate: time.Now().Add(-time.Hour),
+	ctx := ctxForOtcUser(otcBuyerID)
+
+	_, err := svc.CreateOffer(ctx, dto.CreateOtcOfferRequest{
+		SellerID:           otcSellerID,
+		StockID:            otcStockID,
+		Amount:             10,
+		PricePerStock:      50,
+		Premium:            5,
+		SettlementDate:     time.Now().Add(-time.Hour),
 		BuyerAccountNumber: "acc",
 	})
+
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "future")
 }
 
 func TestOtcCreateOffer_ExceedsSellerCapacity_ReturnsError(t *testing.T) {
 	svc, _, _, _, _ := newOtcTestService(t)
-	_, err := svc.CreateOffer(ctxForOtcUser(otcBuyerID), dto.CreateOtcOfferRequest{
-		SellerID: otcSellerID, StockID: otcStockID, Amount: 200,
-		PricePerStock: 50, Premium: 5, SettlementDate: otcFutureDate,
+	ctx := ctxForOtcUser(otcBuyerID)
+
+	_, err := svc.CreateOffer(ctx, dto.CreateOtcOfferRequest{
+		SellerID:           otcSellerID,
+		StockID:            otcStockID,
+		Amount:             200, // seller only has 100 public
+		PricePerStock:      50,
+		Premium:            5,
+		SettlementDate:     otcFutureDate,
 		BuyerAccountNumber: "acc",
 	})
+
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "enough")
 }
@@ -300,10 +367,15 @@ func TestOtcSendCounterOffer_Success(t *testing.T) {
 	offer := otcCreateOffer(t, svc, 10)
 
 	sellerAcc := "seller-acc"
-	updated, err := svc.SendCounterOffer(ctxForOtcUser(otcSellerID), offer.OtcOfferID, dto.CounterOfferRequest{
-		Amount: 8, PricePerStock: 55, Premium: 6,
-		SettlementDate: otcFutureDate, AccountNumber: &sellerAcc,
+	ctx := ctxForOtcUser(otcSellerID)
+	updated, err := svc.SendCounterOffer(ctx, offer.OtcOfferID, dto.CounterOfferRequest{
+		Amount:         8,
+		PricePerStock:  55,
+		Premium:        6,
+		SettlementDate: otcFutureDate,
+		AccountNumber:  &sellerAcc,
 	})
+
 	require.NoError(t, err)
 	assert.Equal(t, 8, updated.Amount)
 	assert.Equal(t, otcSellerID, updated.ModifiedBy)
@@ -314,10 +386,15 @@ func TestOtcSendCounterOffer_SameUserTwice_ReturnsError(t *testing.T) {
 	svc, _, _, _, _ := newOtcTestService(t)
 	offer := otcCreateOffer(t, svc, 10)
 
-	// buyer created (ModifiedBy=buyer) — tries to counter immediately
-	_, err := svc.SendCounterOffer(ctxForOtcUser(otcBuyerID), offer.OtcOfferID, dto.CounterOfferRequest{
-		Amount: 5, PricePerStock: 50, Premium: 5, SettlementDate: otcFutureDate,
+	// buyer just created the offer (ModifiedBy=buyer) — buyer tries again
+	ctx := ctxForOtcUser(otcBuyerID)
+	_, err := svc.SendCounterOffer(ctx, offer.OtcOfferID, dto.CounterOfferRequest{
+		Amount:         5,
+		PricePerStock:  50,
+		Premium:        5,
+		SettlementDate: otcFutureDate,
 	})
+
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "other party")
 }
@@ -326,18 +403,29 @@ func TestOtcSendCounterOffer_NonParticipant_ReturnsError(t *testing.T) {
 	svc, _, _, _, _ := newOtcTestService(t)
 	offer := otcCreateOffer(t, svc, 10)
 
-	_, err := svc.SendCounterOffer(ctxForOtcUser(99), offer.OtcOfferID, dto.CounterOfferRequest{
-		Amount: 5, PricePerStock: 50, Premium: 5, SettlementDate: otcFutureDate,
+	ctx := ctxForOtcUser(99)
+	_, err := svc.SendCounterOffer(ctx, offer.OtcOfferID, dto.CounterOfferRequest{
+		Amount:         5,
+		PricePerStock:  50,
+		Premium:        5,
+		SettlementDate: otcFutureDate,
 	})
+
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "participant")
 }
 
 func TestOtcSendCounterOffer_OfferNotFound_ReturnsError(t *testing.T) {
 	svc, _, _, _, _ := newOtcTestService(t)
-	_, err := svc.SendCounterOffer(ctxForOtcUser(otcSellerID), 9999, dto.CounterOfferRequest{
-		Amount: 5, PricePerStock: 50, Premium: 5, SettlementDate: otcFutureDate,
+	ctx := ctxForOtcUser(otcSellerID)
+
+	_, err := svc.SendCounterOffer(ctx, 9999, dto.CounterOfferRequest{
+		Amount:         5,
+		PricePerStock:  50,
+		Premium:        5,
+		SettlementDate: otcFutureDate,
 	})
+
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
@@ -347,25 +435,27 @@ func TestOtcAcceptOffer_Success_CreatesContractAndIncreasesReservedAmount(t *tes
 	offer := otcCreateOffer(t, svc, 10)
 
 	sellerAcc := "seller-acc"
-	contract, err := svc.AcceptOffer(ctxForOtcUser(otcSellerID), offer.OtcOfferID, dto.AcceptOfferRequest{
+	ctx := ctxForOtcUser(otcSellerID) // seller accepts buyer's offer
+	contract, err := svc.AcceptOffer(ctx, offer.OtcOfferID, dto.AcceptOfferRequest{
 		AccountNumber: &sellerAcc,
 	})
+
 	require.NoError(t, err)
-	assert.Equal(t, 1, banking.paymentsCalled, "premium transfer must fire exactly once")
+	assert.Equal(t, 1, banking.paymentsCalled, "premium transfer should be triggered once")
 	assert.Len(t, contractRepo.contracts, 1)
 	assert.Equal(t, 10, contract.Amount)
 	assert.Equal(t, float64(50), contract.StrikePrice)
-	// The core invariant: reserved_amount grows only on deal acceptance.
-	assert.Equal(t, float64(10), ownershipRepo.reservedDeltas[otcAssetID],
-		"reserved_amount must increase by the contracted amount")
+	assert.Equal(t, float64(10), ownershipRepo.reservedDeltas[otcAssetID], "reserved amount should increase by contract amount")
 }
 
 func TestOtcAcceptOffer_CallerIsModifiedBy_ReturnsError(t *testing.T) {
 	svc, _, _, _, _ := newOtcTestService(t)
 	offer := otcCreateOffer(t, svc, 10)
 
-	// buyer created → ModifiedBy=buyer → buyer cannot accept their own
-	_, err := svc.AcceptOffer(ctxForOtcUser(otcBuyerID), offer.OtcOfferID, dto.AcceptOfferRequest{})
+	// buyer created the offer (ModifiedBy=buyer) — buyer cannot accept their own
+	ctx := ctxForOtcUser(otcBuyerID)
+	_, err := svc.AcceptOffer(ctx, offer.OtcOfferID, dto.AcceptOfferRequest{})
+
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "own offer")
 }
@@ -374,7 +464,9 @@ func TestOtcAcceptOffer_MissingSellerAccount_ReturnsError(t *testing.T) {
 	svc, _, _, _, _ := newOtcTestService(t)
 	offer := otcCreateOffer(t, svc, 10)
 
-	_, err := svc.AcceptOffer(ctxForOtcUser(otcSellerID), offer.OtcOfferID, dto.AcceptOfferRequest{AccountNumber: nil})
+	ctx := ctxForOtcUser(otcSellerID)
+	_, err := svc.AcceptOffer(ctx, offer.OtcOfferID, dto.AcceptOfferRequest{AccountNumber: nil})
+
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "seller_account_number")
 }
@@ -383,7 +475,9 @@ func TestOtcRejectOffer_Success(t *testing.T) {
 	svc, offerRepo, _, _, _ := newOtcTestService(t)
 	offer := otcCreateOffer(t, svc, 10)
 
-	rejected, err := svc.RejectOffer(ctxForOtcUser(otcSellerID), offer.OtcOfferID, dto.RejectOfferRequest{})
+	ctx := ctxForOtcUser(otcSellerID)
+	rejected, err := svc.RejectOffer(ctx, offer.OtcOfferID, dto.RejectOfferRequest{})
+
 	require.NoError(t, err)
 	assert.Equal(t, model.OtcOfferStatusRejected, rejected.Status)
 	assert.Equal(t, model.OtcOfferStatusRejected, offerRepo.offers[offer.OtcOfferID].Status)
@@ -393,11 +487,12 @@ func TestOtcRejectOffer_InactiveOffer_ReturnsError(t *testing.T) {
 	svc, _, _, _, _ := newOtcTestService(t)
 	offer := otcCreateOffer(t, svc, 10)
 
+	// first rejection
 	ctx := ctxForOtcUser(otcSellerID)
 	_, err := svc.RejectOffer(ctx, offer.OtcOfferID, dto.RejectOfferRequest{})
 	require.NoError(t, err)
 
-	// second rejection on already-rejected offer
+	// second rejection on an already-rejected offer
 	_, err = svc.RejectOffer(ctx, offer.OtcOfferID, dto.RejectOfferRequest{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not active")
@@ -416,15 +511,22 @@ func TestOtcGetActiveOffersForUser_ReturnsOnlyActiveOffers(t *testing.T) {
 func TestOtcValidateSellerCapacity_MultipleConcurrentOffers(t *testing.T) {
 	svc, _, _, _, _ := newOtcTestService(t)
 
+	// seller has 100 public shares; create two offers summing to 90
 	otcCreateOffer(t, svc, 50)
 	otcCreateOffer(t, svc, 40)
 
-	// 50+40+20=110 > 100 → must fail
-	_, err := svc.CreateOffer(ctxForOtcUser(otcBuyerID), dto.CreateOtcOfferRequest{
-		SellerID: otcSellerID, StockID: otcStockID, Amount: 20,
-		PricePerStock: 50, Premium: 5, SettlementDate: otcFutureDate,
+	// third offer requesting 20 should fail (50+40+20=110 > 100)
+	ctx := ctxForOtcUser(otcBuyerID)
+	_, err := svc.CreateOffer(ctx, dto.CreateOtcOfferRequest{
+		SellerID:           otcSellerID,
+		StockID:            otcStockID,
+		Amount:             20,
+		PricePerStock:      50,
+		Premium:            5,
+		SettlementDate:     otcFutureDate,
 		BuyerAccountNumber: "acc",
 	})
+
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "enough")
 }

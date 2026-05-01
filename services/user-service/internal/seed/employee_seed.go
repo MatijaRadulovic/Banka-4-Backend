@@ -366,7 +366,7 @@ func Run(db *gorm.DB) error {
 				First(&existingPerm).Error
 
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-					newPerm := model.EmployeePermission{
+				newPerm := model.EmployeePermission{
 					EmployeeID: employee.EmployeeID,
 					Permission: perm,
 				}

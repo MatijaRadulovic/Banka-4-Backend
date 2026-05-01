@@ -1,8 +1,8 @@
 package service
 
 import (
-	"fmt"
 	"context"
+	"fmt"
 
 	pkgerrors "github.com/RAF-SI-2025/Banka-4-Backend/common/pkg/errors"
 	"github.com/RAF-SI-2025/Banka-4-Backend/services/trading-service/internal/client"

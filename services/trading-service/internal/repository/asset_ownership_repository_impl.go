@@ -36,8 +36,6 @@ func (r *assetOwnershipRepository) Upsert(ctx context.Context, ownership *model.
 		Create(ownership).Error
 }
 
-// IncreaseReservedAmount atomically increments reserved_amount by delta.
-// Only called when an OTC option contract is created (deal finalised).
 func (r *assetOwnershipRepository) IncreaseReservedAmount(ctx context.Context, identityID uint, ownerType model.OwnerType, assetID uint, delta float64) error {
 	return r.db.WithContext(ctx).
 		Model(&model.AssetOwnership{}).

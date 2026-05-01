@@ -17,13 +17,13 @@ import (
 
 type errCardRepo struct {
 	fakeCardServiceCardRepo
-	createErr      error
-	findByIDErr    error
-	listErr        error
-	countNonDeactErr error
+	createErr                error
+	findByIDErr              error
+	listErr                  error
+	countNonDeactErr         error
 	countNonDeactByPersonErr error
-	cardNumberExistsErr error
-	updateErr      error
+	cardNumberExistsErr      error
+	updateErr                error
 }
 
 func (r *errCardRepo) Create(_ context.Context, card *model.Card) error {
@@ -97,11 +97,11 @@ func (r *errAccountRepo) FindByAccountNumber(_ context.Context, accountNumber st
 
 type errCardRequestRepo struct {
 	fakeCardServiceCardRequestRepo
-	createErr          error
-	findPendingErr     error
-	findByCodeErr      error
-	updateErr          error
-	pendingResult      *model.CardRequest
+	createErr      error
+	findPendingErr error
+	findByCodeErr  error
+	updateErr      error
+	pendingResult  *model.CardRequest
 }
 
 func (r *errCardRequestRepo) Create(_ context.Context, request *model.CardRequest) error {
@@ -137,7 +137,7 @@ func (r *errCardRequestRepo) Update(_ context.Context, request *model.CardReques
 
 type errAuthorizedPersonRepo struct {
 	fakeCardServiceAuthorizedPersonRepo
-	createErr  error
+	createErr   error
 	findByIDErr error
 }
 

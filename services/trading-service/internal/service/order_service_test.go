@@ -191,13 +191,13 @@ func (c *fakeUserServiceClient) GetAllActuaries(_ context.Context, _, _ int32, _
 // ── Fake Banking Client (order-specific) ──────────────────────────
 
 type fakeOrderBankingClient struct {
-	accountResp     *pb.GetAccountByNumberResponse
-	accountErr      error
-  hasActiveLoan    bool
+	accountResp      *pb.GetAccountByNumberResponse
+	accountErr       error
+	hasActiveLoan    bool
 	hasActiveLoanErr error
-	settlementResp  *pb.ExecuteTradeSettlementResponse
-	settlementErr   error
-	accountCurrency string
+	settlementResp   *pb.ExecuteTradeSettlementResponse
+	settlementErr    error
+	accountCurrency  string
 }
 
 func (c *fakeOrderBankingClient) GetAccountCurrency(_ context.Context, _ string) (string, error) {

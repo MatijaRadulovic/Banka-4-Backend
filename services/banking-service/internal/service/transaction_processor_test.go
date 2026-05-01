@@ -14,8 +14,8 @@ import (
 // ── Fake repos for TransactionProcessor tests ──────────────────────────────
 
 type fakeTpAccountRepo struct {
-	accounts map[string]*model.Account
-	findErr  map[string]error
+	accounts  map[string]*model.Account
+	findErr   map[string]error
 	updateErr map[string]error
 }
 

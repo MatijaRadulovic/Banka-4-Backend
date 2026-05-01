@@ -86,7 +86,7 @@ func (r *fakeForexRepo) FindAll(_ context.Context, _ repository.ListingFilter) (
 
 func makeOwnership(assetID uint, ticker string, amount, avgBuyPrice float64) model.AssetOwnership {
 	return model.AssetOwnership{
-		IdentityID:     1,
+		UserId:         1,
 		OwnerType:      model.OwnerTypeClient,
 		AssetID:        assetID,
 		Asset:          model.Asset{AssetID: assetID, Ticker: ticker, AssetType: model.AssetTypeStock},

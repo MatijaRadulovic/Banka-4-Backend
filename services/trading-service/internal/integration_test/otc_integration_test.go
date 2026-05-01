@@ -14,37 +14,42 @@ import (
 	"gorm.io/gorm"
 )
 
-// ---------------------------------------------------------------------------
-// Seed helpers
-// ---------------------------------------------------------------------------
+// --- seed helpers ---
 
 func seedAssetAndStock(t *testing.T, db *gorm.DB, ticker string) (*model.Asset, *model.Stock) {
+	if len(ticker) > 20 {
+		ticker = ticker[:20]
+	} // ticker u bazi je varchar(20)
 	t.Helper()
-	asset := &model.Asset{Ticker: ticker, Name: "Company " + ticker, AssetType: model.AssetTypeStock}
+	asset := &model.Asset{
+		Ticker:    ticker,
+		Name:      "Company " + ticker,
+		AssetType: model.AssetTypeStock,
+	}
 	require.NoError(t, db.Create(asset).Error)
 	stock := &model.Stock{AssetID: asset.AssetID}
 	require.NoError(t, db.Create(stock).Error)
 	return asset, stock
 }
 
-func seedOwnership(t *testing.T, db *gorm.DB, userID uint, assetID uint, amount, public float64) {
+func seedOwnership(t *testing.T, db *gorm.DB, identityID uint, assetID uint, amount, public float64) {
 	t.Helper()
-	require.NoError(t, db.Create(&model.AssetOwnership{
-		UserId:       userID,
+	o := &model.AssetOwnership{
+		UserId:       identityID,
 		OwnerType:    model.OwnerTypeClient,
 		AssetID:      assetID,
 		Amount:       amount,
 		PublicAmount: public,
-	}).Error)
+	}
+	require.NoError(t, db.Create(o).Error)
 }
 
+// clientAuthHeader generates a JWT for a client identity (used as buyer/seller in OTC).
 func clientAuthHeader(t *testing.T, identityID, clientID uint) string {
 	return authHeaderForClient(t, identityID, clientID)
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
+// --- tests ---
 
 func TestOTC_CreateOffer_Success(t *testing.T) {
 	t.Parallel()
@@ -54,12 +59,17 @@ func TestOTC_CreateOffer_Success(t *testing.T) {
 	asset, stock := seedAssetAndStock(t, db, uniqueValue(t, "CRTO"))
 	seedOwnership(t, db, 20, asset.AssetID, 100, 100)
 
+	// buyer=identity 10/client 10, seller=identity 20/client 20
 	body := map[string]any{
-		"seller_id": 20, "stock_id": stock.StockID, "amount": 10,
-		"price_per_stock": 50.0, "premium": 5.0,
+		"seller_id":            20,
+		"stock_id":             stock.StockID,
+		"amount":               10,
+		"price_per_stock":      50.0,
+		"premium":              5.0,
 		"settlement_date":      time.Now().Add(30 * 24 * time.Hour).Format(time.RFC3339),
 		"buyer_account_number": "buyer-account-001",
 	}
+
 	rec := performRequest(t, router, http.MethodPost, "/api/otc/offers", body, clientAuthHeader(t, 10, 10))
 	requireStatus(t, rec, http.StatusCreated)
 
@@ -79,11 +89,15 @@ func TestOTC_CreateOffer_SelfOffer_BadRequest(t *testing.T) {
 	seedOwnership(t, db, 10, asset.AssetID, 100, 100)
 
 	body := map[string]any{
-		"seller_id": 10, "stock_id": stock.StockID, "amount": 5,
-		"price_per_stock": 50.0, "premium": 5.0,
+		"seller_id":            10, // same as caller
+		"stock_id":             stock.StockID,
+		"amount":               5,
+		"price_per_stock":      50.0,
+		"premium":              5.0,
 		"settlement_date":      time.Now().Add(30 * 24 * time.Hour).Format(time.RFC3339),
 		"buyer_account_number": "acc",
 	}
+
 	rec := performRequest(t, router, http.MethodPost, "/api/otc/offers", body, clientAuthHeader(t, 10, 10))
 	requireStatus(t, rec, http.StatusBadRequest)
 }
@@ -96,7 +110,7 @@ func TestOTC_CreateOffer_Unauthorized(t *testing.T) {
 	body := map[string]any{
 		"seller_id": 20, "stock_id": 1, "amount": 5,
 		"price_per_stock": 50.0, "premium": 5.0,
-		"settlement_date":      time.Now().Add(24 * time.Hour).Format(time.RFC3339),
+		"settlement_date":      time.Now().Add(time.Hour * 24).Format(time.RFC3339),
 		"buyer_account_number": "acc",
 	}
 	rec := performRequest(t, router, http.MethodPost, "/api/otc/offers", body, "")
@@ -111,6 +125,7 @@ func TestOTC_SendCounterOffer_Success(t *testing.T) {
 	asset, stock := seedAssetAndStock(t, db, uniqueValue(t, "CNTR"))
 	seedOwnership(t, db, 20, asset.AssetID, 100, 100)
 
+	// buyer creates offer
 	offerBody := map[string]any{
 		"seller_id": 20, "stock_id": stock.StockID, "amount": 10,
 		"price_per_stock": 50.0, "premium": 5.0,
@@ -119,12 +134,15 @@ func TestOTC_SendCounterOffer_Success(t *testing.T) {
 	}
 	rec := performRequest(t, router, http.MethodPost, "/api/otc/offers", offerBody, clientAuthHeader(t, 10, 10))
 	requireStatus(t, rec, http.StatusCreated)
-	offerID := uint(decodeResponse[map[string]any](t, rec)["otc_offer_id"].(float64))
+	offer := decodeResponse[map[string]any](t, rec)
+	offerID := uint(offer["otc_offer_id"].(float64))
 
+	// seller sends counter
+	sellerAcc := "seller-acc"
 	counterBody := map[string]any{
 		"amount": 8, "price_per_stock": 55.0, "premium": 6.0,
 		"settlement_date": time.Now().Add(30 * 24 * time.Hour).Format(time.RFC3339),
-		"account_number":  "seller-acc",
+		"account_number":  sellerAcc,
 	}
 	rec = performRequest(t, router, http.MethodPut, fmt.Sprintf("/api/otc/offers/%d/counter", offerID), counterBody, clientAuthHeader(t, 20, 20))
 	requireStatus(t, rec, http.StatusOK)
@@ -150,8 +168,10 @@ func TestOTC_SendCounterOffer_SameUserTwice_BadRequest(t *testing.T) {
 	}
 	rec := performRequest(t, router, http.MethodPost, "/api/otc/offers", offerBody, clientAuthHeader(t, 10, 10))
 	requireStatus(t, rec, http.StatusCreated)
-	offerID := uint(decodeResponse[map[string]any](t, rec)["otc_offer_id"].(float64))
+	offer := decodeResponse[map[string]any](t, rec)
+	offerID := uint(offer["otc_offer_id"].(float64))
 
+	// buyer tries to counter their own just-created offer
 	counterBody := map[string]any{
 		"amount": 9, "price_per_stock": 50.0, "premium": 5.0,
 		"settlement_date": time.Now().Add(30 * 24 * time.Hour).Format(time.RFC3339),
@@ -160,7 +180,7 @@ func TestOTC_SendCounterOffer_SameUserTwice_BadRequest(t *testing.T) {
 	requireStatus(t, rec, http.StatusBadRequest)
 }
 
-func TestOTC_AcceptOffer_Success_CreatesContractAndIncreasesReservedAmount(t *testing.T) {
+func TestOTC_AcceptOffer_Success_CreatesContract(t *testing.T) {
 	t.Parallel()
 	db := setupTestDB(t)
 	router, _ := setupTestRouter(t, db)
@@ -168,6 +188,7 @@ func TestOTC_AcceptOffer_Success_CreatesContractAndIncreasesReservedAmount(t *te
 	asset, stock := seedAssetAndStock(t, db, uniqueValue(t, "ACPT"))
 	seedOwnership(t, db, 20, asset.AssetID, 100, 100)
 
+	// buyer creates offer
 	offerBody := map[string]any{
 		"seller_id": 20, "stock_id": stock.StockID, "amount": 10,
 		"price_per_stock": 50.0, "premium": 5.0,
@@ -176,12 +197,12 @@ func TestOTC_AcceptOffer_Success_CreatesContractAndIncreasesReservedAmount(t *te
 	}
 	rec := performRequest(t, router, http.MethodPost, "/api/otc/offers", offerBody, clientAuthHeader(t, 10, 10))
 	requireStatus(t, rec, http.StatusCreated)
-	offerID := uint(decodeResponse[map[string]any](t, rec)["otc_offer_id"].(float64))
+	offer := decodeResponse[map[string]any](t, rec)
+	offerID := uint(offer["otc_offer_id"].(float64))
 
-	rec = performRequest(t, router, http.MethodPatch,
-		fmt.Sprintf("/api/otc/offers/%d/accept", offerID),
-		map[string]any{"account_number": "seller-acc"},
-		clientAuthHeader(t, 20, 20))
+	// seller accepts
+	acceptBody := map[string]any{"account_number": "seller-acc"}
+	rec = performRequest(t, router, http.MethodPatch, fmt.Sprintf("/api/otc/offers/%d/accept", offerID), acceptBody, clientAuthHeader(t, 20, 20))
 	requireStatus(t, rec, http.StatusCreated)
 
 	contract := decodeResponse[map[string]any](t, rec)
@@ -189,10 +210,10 @@ func TestOTC_AcceptOffer_Success_CreatesContractAndIncreasesReservedAmount(t *te
 	assert.Equal(t, float64(10), contract["amount"])
 	assert.Equal(t, float64(50.0), contract["strike_price"])
 
-	// Core assertion: reserved_amount must increase on the seller's row.
+	// Verify reserved_amount was increased on the seller's ownership record
 	var ownership model.AssetOwnership
-	err := db.Where("user_id = ? AND owner_type = ? AND asset_id = ?",
-		20, model.OwnerTypeClient, asset.AssetID).First(&ownership).Error
+	err := db.Where("user_id = ? AND owner_type = ? AND asset_id = ?", 20, model.OwnerTypeClient, asset.AssetID).
+		First(&ownership).Error
 	require.NoError(t, err)
 	assert.Equal(t, float64(10), ownership.ReservedAmount)
 }
@@ -213,8 +234,10 @@ func TestOTC_AcceptOffer_BuyerCannotAcceptOwnOffer(t *testing.T) {
 	}
 	rec := performRequest(t, router, http.MethodPost, "/api/otc/offers", offerBody, clientAuthHeader(t, 10, 10))
 	requireStatus(t, rec, http.StatusCreated)
-	offerID := uint(decodeResponse[map[string]any](t, rec)["otc_offer_id"].(float64))
+	offer := decodeResponse[map[string]any](t, rec)
+	offerID := uint(offer["otc_offer_id"].(float64))
 
+	// buyer tries to accept their own offer
 	rec = performRequest(t, router, http.MethodPatch, fmt.Sprintf("/api/otc/offers/%d/accept", offerID), nil, clientAuthHeader(t, 10, 10))
 	requireStatus(t, rec, http.StatusBadRequest)
 }
@@ -235,11 +258,14 @@ func TestOTC_RejectOffer_Success(t *testing.T) {
 	}
 	rec := performRequest(t, router, http.MethodPost, "/api/otc/offers", offerBody, clientAuthHeader(t, 10, 10))
 	requireStatus(t, rec, http.StatusCreated)
-	offerID := uint(decodeResponse[map[string]any](t, rec)["otc_offer_id"].(float64))
+	offer := decodeResponse[map[string]any](t, rec)
+	offerID := uint(offer["otc_offer_id"].(float64))
 
 	rec = performRequest(t, router, http.MethodPatch, fmt.Sprintf("/api/otc/offers/%d/reject", offerID), nil, clientAuthHeader(t, 20, 20))
 	requireStatus(t, rec, http.StatusOK)
-	assert.Equal(t, "REJECTED", decodeResponse[map[string]any](t, rec)["status"])
+
+	rejected := decodeResponse[map[string]any](t, rec)
+	assert.Equal(t, "REJECTED", rejected["status"])
 }
 
 func TestOTC_GetMyActiveOffers_ReturnsOnlyOwnOffers(t *testing.T) {
@@ -261,14 +287,17 @@ func TestOTC_GetMyActiveOffers_ReturnsOnlyOwnOffers(t *testing.T) {
 		requireStatus(t, rec, http.StatusCreated)
 	}
 
+	// buyer sees their 2 active offers
 	rec := performRequest(t, router, http.MethodGet, "/api/otc/offers/active", nil, clientAuthHeader(t, 10, 10))
 	requireStatus(t, rec, http.StatusOK)
-	assert.Len(t, decodeResponse[[]map[string]any](t, rec), 2)
+	offers := decodeResponse[[]map[string]any](t, rec)
+	assert.Len(t, offers, 2)
 
-	// unrelated user sees nothing
+	// unrelated user sees none
 	rec = performRequest(t, router, http.MethodGet, "/api/otc/offers/active", nil, clientAuthHeader(t, 99, 99))
 	requireStatus(t, rec, http.StatusOK)
-	assert.Empty(t, decodeResponse[[]map[string]any](t, rec))
+	other := decodeResponse[[]map[string]any](t, rec)
+	assert.Empty(t, other)
 }
 
 func TestOTC_GetMyOptionContracts_AfterAccept(t *testing.T) {
@@ -287,18 +316,22 @@ func TestOTC_GetMyOptionContracts_AfterAccept(t *testing.T) {
 	}
 	rec := performRequest(t, router, http.MethodPost, "/api/otc/offers", offerBody, clientAuthHeader(t, 10, 10))
 	requireStatus(t, rec, http.StatusCreated)
-	offerID := uint(decodeResponse[map[string]any](t, rec)["otc_offer_id"].(float64))
+	offer := decodeResponse[map[string]any](t, rec)
+	offerID := uint(offer["otc_offer_id"].(float64))
 
-	rec = performRequest(t, router, http.MethodPatch,
-		fmt.Sprintf("/api/otc/offers/%d/accept", offerID),
-		map[string]any{"account_number": "seller-acc"},
-		clientAuthHeader(t, 20, 20))
+	// seller accepts
+	acceptBody := map[string]any{"account_number": "seller-acc"}
+	rec = performRequest(t, router, http.MethodPatch, fmt.Sprintf("/api/otc/offers/%d/accept", offerID), acceptBody, clientAuthHeader(t, 20, 20))
 	requireStatus(t, rec, http.StatusCreated)
 
-	// both buyer and seller must see the contract
-	for _, id := range []uint{10, 20} {
-		rec = performRequest(t, router, http.MethodGet, "/api/otc/contracts", nil, clientAuthHeader(t, id, id))
-		requireStatus(t, rec, http.StatusOK)
-		assert.Len(t, decodeResponse[[]map[string]any](t, rec), 1)
-	}
+	// both parties should see the contract
+	rec = performRequest(t, router, http.MethodGet, "/api/otc/contracts", nil, clientAuthHeader(t, 10, 10))
+	requireStatus(t, rec, http.StatusOK)
+	contracts := decodeResponse[[]map[string]any](t, rec)
+	assert.Len(t, contracts, 1)
+
+	rec = performRequest(t, router, http.MethodGet, "/api/otc/contracts", nil, clientAuthHeader(t, 20, 20))
+	requireStatus(t, rec, http.StatusOK)
+	contracts = decodeResponse[[]map[string]any](t, rec)
+	assert.Len(t, contracts, 1)
 }

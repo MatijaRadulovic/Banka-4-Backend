@@ -520,9 +520,9 @@ func (s *OrderService) updateAssetOwnership(ctx context.Context, order *model.Or
 
 	if ownership == nil {
 		ownership = &model.AssetOwnership{
-			IdentityID: order.UserID,
-			OwnerType:  order.OwnerType,
-			AssetID:    assetID,
+			UserId:    order.UserID,
+			OwnerType: order.OwnerType,
+			AssetID:   assetID,
 		}
 	}
 

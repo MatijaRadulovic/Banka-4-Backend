@@ -38,7 +38,7 @@ func TestGetClientPortfolio_WithOwnership(t *testing.T) {
 	_ = seedOrder(t, db, 1, listing.ListingID, model.OrderDirectionBuy, model.OrderStatusApproved)
 
 	ownership := &model.AssetOwnership{
-		IdentityID:     1,
+		UserId:         1,
 		OwnerType:      model.OwnerTypeClient,
 		AssetID:        listing.AssetID,
 		Amount:         10.0,

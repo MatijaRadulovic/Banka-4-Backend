@@ -53,7 +53,9 @@ func (h *OtcOfferHandler) CreateOffer(c *gin.Context) {
 //
 // @Summary     Send counter-offer
 // @Description Either party may update the offer parameters (amount, price, premium, settlement date).
-//              Parties alternate turns — the same user cannot send two consecutive counter-offers.
+//
+//	Parties alternate turns — the same user cannot send two consecutive counter-offers.
+//
 // @Tags        otc
 // @Accept      json
 // @Produce     json
@@ -88,8 +90,10 @@ func (h *OtcOfferHandler) SendCounterOffer(c *gin.Context) {
 //
 // @Summary     Accept OTC offer
 // @Description The party opposite to ModifiedBy accepts the offer. An option contract is created
-//              and the premium is immediately transferred from the buyer's account to the seller's.
-//              If the seller has not yet provided their account number, it must be supplied here.
+//
+//	and the premium is immediately transferred from the buyer's account to the seller's.
+//	If the seller has not yet provided their account number, it must be supplied here.
+//
 // @Tags        otc
 // @Accept      json
 // @Produce     json
@@ -154,7 +158,9 @@ func (h *OtcOfferHandler) RejectOffer(c *gin.Context) {
 //
 // @Summary     List active OTC offers
 // @Description Returns all ongoing negotiations (status=ACTIVE) where the authenticated user
-//              is either the buyer or the seller.
+//
+//	is either the buyer or the seller.
+//
 // @Tags        otc
 // @Produce     json
 // @Success     200 {array}  dto.OtcOfferResponse
@@ -178,7 +184,9 @@ func (h *OtcOfferHandler) GetMyActiveOffers(c *gin.Context) {
 //
 // @Summary     List OTC option contracts
 // @Description Returns all option contracts (CALL) created from accepted OTC offers where the
-//              authenticated user is either the buyer or the seller.
+//
+//	authenticated user is either the buyer or the seller.
+//
 // @Tags        otc
 // @Produce     json
 // @Success     200 {array}  dto.OtcOptionContractResponse
