@@ -69,6 +69,7 @@ type fakePositionRepo struct {
 	findResult *model.ClientFundPosition
 	findErr    error
 	upsertErr  error
+	upserted   *model.ClientFundPosition
 }
 
 func (f *fakePositionRepo) FindByClientAndFund(ctx context.Context, clientID uint, ownerType model.OwnerType, fundID uint) (*model.ClientFundPosition, error) {
@@ -76,6 +77,7 @@ func (f *fakePositionRepo) FindByClientAndFund(ctx context.Context, clientID uin
 }
 
 func (f *fakePositionRepo) Upsert(ctx context.Context, position *model.ClientFundPosition) error {
+	f.upserted = position
 	return f.upsertErr
 }
 
@@ -93,16 +95,60 @@ func (f *fakeInvestmentRepo) FindByClientAndFund(ctx context.Context, clientID u
 	return nil, nil
 }
 
+type fakeRedemptionRepo struct {
+	createErr  error
+	updateErr  error
+	pendingSum float64
+	pendingErr error
+	pending    []model.ClientFundRedemption
+	findErr    error
+	created    *model.ClientFundRedemption
+	updated    *model.ClientFundRedemption
+}
+
+func (f *fakeRedemptionRepo) Create(ctx context.Context, redemption *model.ClientFundRedemption) error {
+	if f.createErr != nil {
+		return f.createErr
+	}
+	if redemption.ClientFundRedemptionID == 0 {
+		redemption.ClientFundRedemptionID = 1
+	}
+	f.created = redemption
+	return nil
+}
+
+func (f *fakeRedemptionRepo) Update(ctx context.Context, redemption *model.ClientFundRedemption) error {
+	if f.updateErr != nil {
+		return f.updateErr
+	}
+	f.updated = redemption
+	return nil
+}
+
+func (f *fakeRedemptionRepo) FindPending(ctx context.Context, limit int) ([]model.ClientFundRedemption, error) {
+	return f.pending, f.findErr
+}
+
+func (f *fakeRedemptionRepo) SumPendingByClientAndFund(ctx context.Context, clientID uint, ownerType model.OwnerType, fundID uint) (float64, error) {
+	return f.pendingSum, f.pendingErr
+}
+
 // ── Fake Fund Banking Client ──────────────────────────────────────
 
 type fakeFundBankingClient struct {
 	createdAccountNumber string
 	createFundAccountErr error
 	getAccountResult     *pb.GetAccountByNumberResponse
+	accountsByNumber     map[string]*pb.GetAccountByNumberResponse
+	paymentErr           error
+	payments             []*pb.CreatePaymentRequest
 	tradeSettlementErr   error
 }
 
-func (f *fakeFundBankingClient) GetAccountByNumber(_ context.Context, _ string) (*pb.GetAccountByNumberResponse, error) {
+func (f *fakeFundBankingClient) GetAccountByNumber(_ context.Context, accountNumber string) (*pb.GetAccountByNumberResponse, error) {
+	if f.accountsByNumber != nil {
+		return f.accountsByNumber[accountNumber], nil
+	}
 	if f.getAccountResult != nil {
 		return f.getAccountResult, nil
 	}
@@ -111,8 +157,12 @@ func (f *fakeFundBankingClient) GetAccountByNumber(_ context.Context, _ string) 
 func (f *fakeFundBankingClient) HasActiveLoan(_ context.Context, _ uint64) (*pb.HasActiveLoanResponse, error) {
 	return nil, nil
 }
-func (f *fakeFundBankingClient) CreatePaymentWithoutVerification(_ context.Context, _ *pb.CreatePaymentRequest) (*pb.CreatePaymentResponse, error) {
-	return nil, nil
+func (f *fakeFundBankingClient) CreatePaymentWithoutVerification(_ context.Context, req *pb.CreatePaymentRequest) (*pb.CreatePaymentResponse, error) {
+	if f.paymentErr != nil {
+		return nil, f.paymentErr
+	}
+	f.payments = append(f.payments, req)
+	return &pb.CreatePaymentResponse{PaymentId: uint64(len(f.payments))}, nil
 }
 func (f *fakeFundBankingClient) GetAccountsByClientID(_ context.Context, _ uint64) (*pb.GetAccountsByClientIDResponse, error) {
 	return nil, nil
@@ -214,7 +264,7 @@ func newTestFundService(
 	bankingClient *fakeFundBankingClient,
 	userClient *fakeFundUserClient,
 ) *InvestmentFundService {
-	return NewInvestmentFundService(fundRepo, &fakePositionRepo{}, &fakeInvestmentRepo{}, ownershipRepo, listingRepo, bankingClient, userClient)
+	return NewInvestmentFundService(fundRepo, &fakePositionRepo{}, &fakeInvestmentRepo{}, &fakeRedemptionRepo{}, ownershipRepo, listingRepo, bankingClient, userClient, nil)
 }
 
 // ── CreateFund tests ──────────────────────────────────────────────
@@ -433,4 +483,123 @@ func TestGetActuaryFunds_OwnershipRepoError(t *testing.T) {
 	_, err := svc.GetActuaryFunds(fundSupervisorCtx(), 25)
 
 	require.Error(t, err)
+}
+
+func TestWithdrawFromFund_ClientSuccess(t *testing.T) {
+	fund := &model.InvestmentFund{FundID: 1, Name: "Alpha Growth Fund", AccountNumber: "fund-account"}
+	positionRepo := &fakePositionRepo{findResult: &model.ClientFundPosition{
+		ClientID:            99,
+		OwnerType:           model.OwnerTypeClient,
+		FundID:              1,
+		TotalInvestedAmount: 2000,
+	}}
+	redemptionRepo := &fakeRedemptionRepo{}
+	bankingClient := &fakeFundBankingClient{
+		accountsByNumber: map[string]*pb.GetAccountByNumberResponse{
+			"fund-account":   {AccountNumber: "fund-account", AccountType: "Fund", CurrencyCode: "RSD", AvailableBalance: 2000},
+			"client-account": {AccountNumber: "client-account", ClientId: 99, AccountType: "Current", CurrencyCode: "RSD"},
+		},
+	}
+	svc := NewInvestmentFundService(&fakeFundRepo{findByIDResult: fund}, positionRepo, &fakeInvestmentRepo{}, redemptionRepo, &fakeAssetOwnershipRepo{}, &fakeListingRepo{}, bankingClient, &fakeFundUserClient{}, nil)
+
+	resp, err := svc.WithdrawFromFund(fundClientCtx(), 1, dto.WithdrawFromFundRequest{
+		AccountNumber: "client-account",
+		Amount:        1000,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.Equal(t, model.FundRedemptionCompleted, resp.Status)
+	require.Equal(t, 1000.0, resp.WithdrawnAmountRSD)
+	require.Equal(t, 1000.0, resp.TotalInvestedRSD)
+	require.Len(t, bankingClient.payments, 1)
+	require.Equal(t, "fund-account", bankingClient.payments[0].PayerAccountNumber)
+	require.Equal(t, "client-account", bankingClient.payments[0].RecipientAccountNumber)
+	require.False(t, bankingClient.payments[0].CommissionExempt)
+	require.NotNil(t, redemptionRepo.created)
+	require.Equal(t, model.FundRedemptionCompleted, redemptionRepo.created.Status)
+	require.NotNil(t, positionRepo.upserted)
+	require.Equal(t, 1000.0, positionRepo.upserted.TotalInvestedAmount)
+}
+
+func TestWithdrawFromFund_SupervisorSuccessCommissionExempt(t *testing.T) {
+	fund := &model.InvestmentFund{FundID: 1, Name: "Alpha Growth Fund", AccountNumber: "fund-account"}
+	positionRepo := &fakePositionRepo{findResult: &model.ClientFundPosition{
+		ClientID:            25,
+		OwnerType:           model.OwnerTypeActuary,
+		FundID:              1,
+		TotalInvestedAmount: 3000,
+	}}
+	bankingClient := &fakeFundBankingClient{
+		accountsByNumber: map[string]*pb.GetAccountByNumberResponse{
+			"fund-account": {AccountNumber: "fund-account", AccountType: "Fund", CurrencyCode: "RSD", AvailableBalance: 3000},
+			"bank-account": {AccountNumber: "bank-account", AccountType: "Bank", CurrencyCode: "RSD"},
+		},
+	}
+	svc := NewInvestmentFundService(&fakeFundRepo{findByIDResult: fund}, positionRepo, &fakeInvestmentRepo{}, &fakeRedemptionRepo{}, &fakeAssetOwnershipRepo{}, &fakeListingRepo{}, bankingClient, &fakeFundUserClient{}, nil)
+
+	resp, err := svc.WithdrawFromFund(fundSupervisorCtx(), 1, dto.WithdrawFromFundRequest{
+		AccountNumber: "bank-account",
+		Amount:        1500,
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, model.FundRedemptionCompleted, resp.Status)
+	require.Len(t, bankingClient.payments, 1)
+	require.True(t, bankingClient.payments[0].CommissionExempt)
+	require.Equal(t, 1500.0, resp.TotalInvestedRSD)
+}
+
+func TestWithdrawFromFund_ExceedsAvailablePosition(t *testing.T) {
+	fund := &model.InvestmentFund{FundID: 1, Name: "Alpha Growth Fund", AccountNumber: "fund-account"}
+	positionRepo := &fakePositionRepo{findResult: &model.ClientFundPosition{
+		ClientID:            99,
+		OwnerType:           model.OwnerTypeClient,
+		FundID:              1,
+		TotalInvestedAmount: 1000,
+	}}
+	redemptionRepo := &fakeRedemptionRepo{pendingSum: 300}
+	bankingClient := &fakeFundBankingClient{
+		accountsByNumber: map[string]*pb.GetAccountByNumberResponse{
+			"client-account": {AccountNumber: "client-account", ClientId: 99, AccountType: "Current", CurrencyCode: "RSD"},
+		},
+	}
+	svc := NewInvestmentFundService(&fakeFundRepo{findByIDResult: fund}, positionRepo, &fakeInvestmentRepo{}, redemptionRepo, &fakeAssetOwnershipRepo{}, &fakeListingRepo{}, bankingClient, &fakeFundUserClient{}, nil)
+
+	resp, err := svc.WithdrawFromFund(fundClientCtx(), 1, dto.WithdrawFromFundRequest{
+		AccountNumber: "client-account",
+		Amount:        800,
+	})
+
+	require.Nil(t, resp)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "exceeds available")
+	require.Empty(t, bankingClient.payments)
+}
+
+func TestWithdrawFromFund_InsufficientLiquidityWithoutSecurities(t *testing.T) {
+	fund := &model.InvestmentFund{FundID: 1, Name: "Alpha Growth Fund", AccountNumber: "fund-account"}
+	positionRepo := &fakePositionRepo{findResult: &model.ClientFundPosition{
+		ClientID:            99,
+		OwnerType:           model.OwnerTypeClient,
+		FundID:              1,
+		TotalInvestedAmount: 2000,
+	}}
+	bankingClient := &fakeFundBankingClient{
+		accountsByNumber: map[string]*pb.GetAccountByNumberResponse{
+			"fund-account":   {AccountNumber: "fund-account", AccountType: "Fund", CurrencyCode: "RSD", AvailableBalance: 100},
+			"client-account": {AccountNumber: "client-account", ClientId: 99, AccountType: "Current", CurrencyCode: "RSD"},
+		},
+	}
+	svc := NewInvestmentFundService(&fakeFundRepo{findByIDResult: fund}, positionRepo, &fakeInvestmentRepo{}, &fakeRedemptionRepo{}, &fakeAssetOwnershipRepo{}, &fakeListingRepo{}, bankingClient, &fakeFundUserClient{}, nil)
+
+	resp, err := svc.WithdrawFromFund(fundClientCtx(), 1, dto.WithdrawFromFundRequest{
+		AccountNumber: "client-account",
+		Amount:        1000,
+	})
+
+	require.Nil(t, resp)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "insufficient liquid assets")
+	require.Empty(t, bankingClient.payments)
 }

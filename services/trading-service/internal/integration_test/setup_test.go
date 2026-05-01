@@ -80,6 +80,7 @@ func TestMain(m *testing.M) {
 		&model.InvestmentFund{},
 		&model.ClientFundPosition{},
 		&model.ClientFundInvestment{},
+		&model.ClientFundRedemption{},
 	); err != nil {
 		log.Fatalf("auto migrate test schema: %v", err)
 	}
@@ -282,13 +283,13 @@ func setupTestRouterWithPermissions(t *testing.T, db *gorm.DB, perms []permissio
 	exchangeSvc := service.NewExchangeService(exchangeRepo)
 	listingSvc := service.NewListingService(listingRepo, futuresRepo, forexRepo, optionRepo)
 	fundRepo := repository.NewInvestmentFundRepository(db)
-	positionRepo := repository.NewClientFundPositionRepository(db)
-	investmentRepo := repository.NewClientFundInvestmentRepository(db)
-	fundSvc := service.NewInvestmentFundService(fundRepo, positionRepo, investmentRepo, assetOwnershipRepo, listingRepo, bankingClient, userClient)
-	fundHandler := handler.NewInvestmentFundHandler(fundSvc)
-
 	var taxRecorder service.TaxRecorder = &fakeTaxRecorder{}
 	orderSvc := service.NewOrderService(orderRepo, orderTxRepo, exchangeRepo, listingRepo, assetOwnershipRepo, futuresRepo, optionRepo, fundRepo, userClient, bankingClient, taxRecorder)
+	positionRepo := repository.NewClientFundPositionRepository(db)
+	investmentRepo := repository.NewClientFundInvestmentRepository(db)
+	redemptionRepo := repository.NewClientFundRedemptionRepository(db)
+	fundSvc := service.NewInvestmentFundService(fundRepo, positionRepo, investmentRepo, redemptionRepo, assetOwnershipRepo, listingRepo, bankingClient, userClient, orderSvc)
+	fundHandler := handler.NewInvestmentFundHandler(fundSvc)
 	portfolioSvc := service.NewPortfolioService(assetOwnershipRepo, stockRepo, optionRepo, futuresRepo, forexRepo, bankingClient, userClient)
 
 	taxSvc := service.NewTaxService(taxRepo, bankingClient, cfg)
