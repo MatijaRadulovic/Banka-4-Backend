@@ -493,6 +493,7 @@ func (s *InvestmentFundService) GetFundDetail(ctx context.Context, fundID uint) 
 		holdingsResp = append(holdingsResp, dto.SecurityHoldingResponse{
 			Ticker:            h.Asset.Ticker,
 			Price:             currentPrice,
+			Amount:            h.Amount,
 			Currency:          listingCurrency,
 			Change:            change,
 			Volume:            volume,

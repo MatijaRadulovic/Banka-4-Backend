@@ -4,6 +4,7 @@ import "time"
 
 type SecurityHoldingResponse struct {
 	Ticker            string    `json:"ticker"`
+	Amount            float64   `json:"amount"`
 	Price             float64   `json:"price"`
 	Currency          string    `json:"currency"`
 	Change            float64   `json:"change"`

@@ -3378,6 +3378,9 @@ const docTemplate = `{
                 "acquisition_date": {
                     "type": "string"
                 },
+                "amount": {
+                    "type": "number"
+                },
                 "change": {
                     "type": "number"
                 },
