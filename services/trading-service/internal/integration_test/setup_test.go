@@ -310,12 +310,8 @@ func setupTestRouterWithPermissions(t *testing.T, db *gorm.DB, perms []permissio
 	orderSvc := service.NewOrderService(orderRepo, orderTxRepo, exchangeRepo, listingRepo, assetOwnershipRepo, futuresRepo, optionRepo, fundRepo, userClient, bankingClient, taxRecorder)
 	positionRepo := repository.NewClientFundPositionRepository(db)
 	investmentRepo := repository.NewClientFundInvestmentRepository(db)
-<<<<<<< main
-	fundSvc := service.NewInvestmentFundService(fundRepo, positionRepo, listingRepo, investmentRepo, assetOwnershipRepo, exchangeRepo, stockRepo, optionRepo, futuresRepo, forexRepo, bankingClient, userClient)
-=======
 	redemptionRepo := repository.NewClientFundRedemptionRepository(db)
-	fundSvc := service.NewInvestmentFundService(fundRepo, positionRepo, listingRepo, investmentRepo, redemptionRepo, assetOwnershipRepo, exchangeRepo, bankingClient, userClient, orderSvc)
->>>>>>> main
+	fundSvc := service.NewInvestmentFundService(fundRepo, positionRepo, listingRepo, investmentRepo, redemptionRepo, assetOwnershipRepo, exchangeRepo, stockRepo, optionRepo, futuresRepo, forexRepo, bankingClient, userClient, nil)
 	fundHandler := handler.NewInvestmentFundHandler(fundSvc)
 	portfolioSvc := service.NewPortfolioService(assetOwnershipRepo, stockRepo, optionRepo, futuresRepo, forexRepo, bankingClient, userClient)
 
