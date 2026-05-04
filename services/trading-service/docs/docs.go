@@ -654,6 +654,61 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/client/{clientId}/funds": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns all investment fund positions for the specified client, including share percentage and current value in RSD.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "investment-funds"
+                ],
+                "summary": "Get client's investment fund positions",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Client ID",
+                        "name": "clientId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.FundPositionSummaryResponse"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/errors.AppError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/errors.AppError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/errors.AppError"
+                        }
+                    }
+                }
+            }
+        },
         "/api/exchanges": {
             "get": {
                 "description": "Returns a paginated list of all stock exchanges",
@@ -3186,6 +3241,29 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "profit": {
+                    "type": "number"
+                }
+            }
+        },
+        "dto.FundPositionSummaryResponse": {
+            "type": "object",
+            "properties": {
+                "clients_share_percent": {
+                    "type": "number"
+                },
+                "clients_share_value_rsd": {
+                    "type": "number"
+                },
+                "fund_description": {
+                    "type": "string"
+                },
+                "fund_id": {
+                    "type": "integer"
+                },
+                "fund_name": {
+                    "type": "string"
+                },
+                "total_profit": {
                     "type": "number"
                 }
             }

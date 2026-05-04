@@ -27,6 +27,10 @@ type InvestmentFundService struct {
 	investmentRepo repository.ClientFundInvestmentRepository
 	ownershipRepo  repository.AssetOwnershipRepository
 	exchangeRepo   repository.ExchangeRepository
+	stockRepo      repository.StockRepository
+	optionRepo     repository.OptionRepository
+	futuresRepo    repository.FuturesContractRepository
+	forexRepo      repository.ForexRepository
 	bankingClient  client.BankingClient
 	userClient     client.UserServiceClient
 	now            func() time.Time
@@ -42,6 +46,10 @@ func NewInvestmentFundService(
 	redemptionRepo repository.ClientFundRedemptionRepository,
 	ownershipRepo repository.AssetOwnershipRepository,
 	exchangeRepo repository.ExchangeRepository,
+	stockRepo repository.StockRepository,
+	optionRepo repository.OptionRepository,
+	futuresRepo repository.FuturesContractRepository,
+	forexRepo repository.ForexRepository,
 	bankingClient client.BankingClient,
 	userClient client.UserServiceClient,
 	orderService *OrderService,
@@ -54,6 +62,10 @@ func NewInvestmentFundService(
 		redemptionRepo: redemptionRepo,
 		ownershipRepo:  ownershipRepo,
 		exchangeRepo:   exchangeRepo,
+		stockRepo:      stockRepo,
+		optionRepo:     optionRepo,
+		futuresRepo:    futuresRepo,
+		forexRepo:      forexRepo,
 		bankingClient:  bankingClient,
 		userClient:     userClient,
 		orderService:   orderService,
@@ -748,6 +760,69 @@ func resolveCallerIdentity(authCtx *auth.AuthContext) (uint, model.OwnerType, er
 	default:
 		return 0, "", commonErrors.UnauthorizedErr("unknown identity type")
 	}
+}
+func (s *InvestmentFundService) getFundSharesValueRSD(ctx context.Context, fundID uint) (float64, error) {
+	securitiesValue, err := s.sumSecuritiesValue(ctx, fundID)
+	if err != nil {
+		return 0, commonErrors.InternalErr(err)
+	}
+	return securitiesValue, nil
+}
+
+func (s *InvestmentFundService) getFundTotalInvestedRSD(ctx context.Context, fundID uint) (float64, error) {
+	positions, err := s.positionRepo.FindByFund(ctx, fundID)
+	if err != nil {
+		return 0, commonErrors.InternalErr(err)
+	}
+
+	var total float64
+	for _, pos := range positions {
+		total += pos.TotalInvestedAmount
+	}
+	return total, nil
+}
+
+func (s *InvestmentFundService) GetClientFundPositions(ctx context.Context, clientID uint) ([]dto.FundPositionSummaryResponse, error) {
+	positions, err := s.positionRepo.FindByClient(ctx, clientID, model.OwnerTypeClient)
+	if err != nil {
+		return nil, commonErrors.InternalErr(err)
+	}
+
+	result := make([]dto.FundPositionSummaryResponse, len(positions))
+	for i, pos := range positions {
+		result[i] = dto.ToFundPositionSummaryResponse(pos)
+
+		fund, err := s.fundRepo.FindByID(ctx, pos.FundID)
+		if err != nil || fund == nil {
+			return nil, commonErrors.InternalErr(err)
+		}
+
+		liquidAssets, err := s.getLiquidAssets(ctx, fund.AccountNumber)
+		if err != nil {
+			return nil, commonErrors.InternalErr(err)
+		}
+
+		sharesValue, err := s.getFundSharesValueRSD(ctx, pos.FundID)
+		if err != nil {
+			return nil, commonErrors.InternalErr(err)
+		}
+
+		fundTotalValue := sharesValue + liquidAssets
+		fundTotalInvested, err := s.getFundTotalInvestedRSD(ctx, pos.FundID)
+		if err != nil {
+			return nil, err
+		}
+
+		if fundTotalInvested == 0 {
+			result[i].ClientsSharePercent = 0
+		} else {
+			result[i].ClientsSharePercent = (pos.TotalInvestedAmount / fundTotalInvested) * 100
+		}
+		result[i].ClientsShareValueRSD = (result[i].ClientsSharePercent * fundTotalValue) / 100
+		result[i].TotalProfit = result[i].ClientsShareValueRSD - pos.TotalInvestedAmount
+	}
+
+	return result, nil
 }
 
 func (s *InvestmentFundService) GetFundDetail(ctx context.Context, fundID uint) (*dto.FundDetailResponse, error) {

@@ -383,6 +383,21 @@ definitions:
       profit:
         type: number
     type: object
+  dto.FundPositionSummaryResponse:
+    properties:
+      clients_share_percent:
+        type: number
+      clients_share_value_rsd:
+        type: number
+      fund_description:
+        type: string
+      fund_id:
+        type: integer
+      fund_name:
+        type: string
+      total_profit:
+        type: number
+    type: object
   dto.FundSummaryResponse:
     properties:
       account_number:
@@ -1514,6 +1529,42 @@ paths:
       summary: Get total profit for a client portfolio
       tags:
       - portfolio
+  /api/client/{clientId}/funds:
+    get:
+      description: Returns all investment fund positions for the specified client,
+        including share percentage and current value in RSD.
+      parameters:
+      - description: Client ID
+        in: path
+        name: clientId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.FundPositionSummaryResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errors.AppError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Get client's investment fund positions
+      tags:
+      - investment-funds
   /api/exchanges:
     get:
       description: Returns a paginated list of all stock exchanges

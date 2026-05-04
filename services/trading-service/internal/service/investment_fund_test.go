@@ -81,14 +81,26 @@ func (f *fakeFundRepo) SavePerformanceSnapshot(ctx context.Context, perf *model.
 // ── Fake Position / Investment Repos (unchanged) ─────────────────────────────
 
 type fakePositionRepo struct {
-	findResult *model.ClientFundPosition
-	findErr    error
-	upsertErr  error
-	upserted   *model.ClientFundPosition
+	findResult      *model.ClientFundPosition
+	findErr         error
+	findByClientRes []model.ClientFundPosition
+	findByClientErr error
+	findByFundRes   []model.ClientFundPosition
+	findByFundErr   error
+	upsertErr       error
+	upserted        *model.ClientFundPosition
 }
 
 func (f *fakePositionRepo) FindByClientAndFund(ctx context.Context, clientID uint, ownerType model.OwnerType, fundID uint) (*model.ClientFundPosition, error) {
 	return f.findResult, f.findErr
+}
+
+func (f *fakePositionRepo) FindByClient(ctx context.Context, clientID uint, ownerType model.OwnerType) ([]model.ClientFundPosition, error) {
+	return f.findByClientRes, f.findByClientErr
+}
+
+func (f *fakePositionRepo) FindByFund(ctx context.Context, fundID uint) ([]model.ClientFundPosition, error) {
+	return f.findByFundRes, f.findByFundErr
 }
 func (f *fakePositionRepo) Upsert(ctx context.Context, position *model.ClientFundPosition) error {
 	f.upserted = position
@@ -292,7 +304,11 @@ func (f *fakeUserClient) GetIdentityByUserId(ctx context.Context, userID uint64,
 
 func newTestFundServiceWithListing(fundRepo *fakeFundRepo, listingRepo *fakeListingRepo, bankingClient *fakeFundBankingClient, userClient *fakeUserClient) *InvestmentFundService {
 	exchange := defaultExchange()
-	svc := NewInvestmentFundService(fundRepo, &fakePositionRepo{}, listingRepo, &fakeInvestmentRepo{}, &fakeRedemptionRepo{}, &fakeAssetOwnershipRepo{}, &fakeExchangeRepo{exchange: exchange}, bankingClient, userClient, nil)
+	svc := NewInvestmentFundService(fundRepo, &fakePositionRepo{}, listingRepo, &fakeInvestmentRepo{}, &fakeRedemptionRepo{}, &fakeAssetOwnershipRepo{}, &fakeExchangeRepo{exchange: exchange}, &fakeStockRepo{},
+		&fakeOptionRepo{},
+		&fakeFuturesRepo{},
+		&fakeForexRepo{}, bankingClient, userClient, nil)
+	svc.listingRepo = listingRepo // inject listingRepo
 	return svc
 }
 
@@ -368,15 +384,24 @@ func TestGetFundDetail_Success(t *testing.T) {
 	require.Len(t, resp.PerformanceHistory, 2)
 }
 
-func newTestFundService(
-	fundRepo *fakeFundRepo,
-	ownershipRepo *fakeAssetOwnershipRepo,
-	listingRepo *fakeListingRepo,
-	bankingClient *fakeFundBankingClient,
-	userClient *fakeFundUserClient,
-) *InvestmentFundService {
+func newTestFundService(fundRepo *fakeFundRepo, ownershipRepo *fakeAssetOwnershipRepo, listingRepo *fakeListingRepo, bankingClient *fakeFundBankingClient, userClient *fakeFundUserClient) *InvestmentFundService {
 	exchange := defaultExchange()
-	return NewInvestmentFundService(fundRepo, &fakePositionRepo{}, listingRepo, &fakeInvestmentRepo{}, &fakeRedemptionRepo{}, ownershipRepo, &fakeExchangeRepo{exchange: exchange}, bankingClient, userClient, nil)
+	return NewInvestmentFundService(
+		fundRepo,
+		&fakePositionRepo{},
+		listingRepo,
+		&fakeInvestmentRepo{},
+		&fakeRedemptionRepo{},
+		ownershipRepo,
+		&fakeExchangeRepo{exchange: exchange},
+		&fakeStockRepo{},
+		&fakeOptionRepo{},
+		&fakeFuturesRepo{},
+		&fakeForexRepo{},
+		bankingClient,
+		userClient,
+		nil,
+	)
 }
 
 // ── CreateFund tests ──────────────────────────────────────────────
@@ -629,7 +654,7 @@ func TestWithdrawFromFund_ClientSuccess(t *testing.T) {
 	}
 
 	exchange := defaultExchange()
-	svc := NewInvestmentFundService(&fakeFundRepo{findByIDResult: fund}, positionRepo, &fakeListingRepo{}, &fakeInvestmentRepo{}, redemptionRepo, &fakeAssetOwnershipRepo{}, &fakeExchangeRepo{exchange: exchange}, bankingClient, &fakeFundUserClient{}, nil)
+	svc := NewInvestmentFundService(&fakeFundRepo{findByIDResult: fund}, positionRepo, &fakeListingRepo{}, &fakeInvestmentRepo{}, redemptionRepo, &fakeAssetOwnershipRepo{}, &fakeExchangeRepo{exchange: exchange}, &fakeStockRepo{}, &fakeOptionRepo{}, &fakeFuturesRepo{}, &fakeForexRepo{}, bankingClient, &fakeFundUserClient{}, nil)
 
 	resp, err := svc.WithdrawFromFund(fundClientCtx(), 1, dto.WithdrawFromFundRequest{
 		AccountNumber: "client-account",
@@ -667,7 +692,7 @@ func TestWithdrawFromFund_SupervisorSuccessCommissionExempt(t *testing.T) {
 	}
 
 	exchange := defaultExchange()
-	svc := NewInvestmentFundService(&fakeFundRepo{findByIDResult: fund}, positionRepo, &fakeListingRepo{}, &fakeInvestmentRepo{}, &fakeRedemptionRepo{}, &fakeAssetOwnershipRepo{}, &fakeExchangeRepo{exchange: exchange}, bankingClient, &fakeFundUserClient{}, nil)
+	svc := NewInvestmentFundService(&fakeFundRepo{findByIDResult: fund}, positionRepo, &fakeListingRepo{}, &fakeInvestmentRepo{}, &fakeRedemptionRepo{}, &fakeAssetOwnershipRepo{}, &fakeExchangeRepo{exchange: exchange}, &fakeStockRepo{}, &fakeOptionRepo{}, &fakeFuturesRepo{}, &fakeForexRepo{}, bankingClient, &fakeFundUserClient{}, nil)
 
 	resp, err := svc.WithdrawFromFund(fundSupervisorCtx(), 1, dto.WithdrawFromFundRequest{
 		AccountNumber: "bank-account",
@@ -697,7 +722,7 @@ func TestWithdrawFromFund_ExceedsAvailablePosition(t *testing.T) {
 	}
 
 	exchange := defaultExchange()
-	svc := NewInvestmentFundService(&fakeFundRepo{findByIDResult: fund}, positionRepo, &fakeListingRepo{}, &fakeInvestmentRepo{}, redemptionRepo, &fakeAssetOwnershipRepo{}, &fakeExchangeRepo{exchange: exchange}, bankingClient, &fakeFundUserClient{}, nil)
+	svc := NewInvestmentFundService(&fakeFundRepo{findByIDResult: fund}, positionRepo, &fakeListingRepo{}, &fakeInvestmentRepo{}, redemptionRepo, &fakeAssetOwnershipRepo{}, &fakeExchangeRepo{exchange: exchange}, &fakeStockRepo{}, &fakeOptionRepo{}, &fakeFuturesRepo{}, &fakeForexRepo{}, bankingClient, &fakeFundUserClient{}, nil)
 
 	resp, err := svc.WithdrawFromFund(fundClientCtx(), 1, dto.WithdrawFromFundRequest{
 		AccountNumber: "client-account",
@@ -726,7 +751,7 @@ func TestWithdrawFromFund_InsufficientLiquidityWithoutSecurities(t *testing.T) {
 	}
 
 	exchange := defaultExchange()
-	svc := NewInvestmentFundService(&fakeFundRepo{findByIDResult: fund}, positionRepo, &fakeListingRepo{}, &fakeInvestmentRepo{}, &fakeRedemptionRepo{}, &fakeAssetOwnershipRepo{}, &fakeExchangeRepo{exchange: exchange}, bankingClient, &fakeFundUserClient{}, nil)
+	svc := NewInvestmentFundService(&fakeFundRepo{findByIDResult: fund}, positionRepo, &fakeListingRepo{}, &fakeInvestmentRepo{}, &fakeRedemptionRepo{}, &fakeAssetOwnershipRepo{}, &fakeExchangeRepo{exchange: exchange}, &fakeStockRepo{}, &fakeOptionRepo{}, &fakeFuturesRepo{}, &fakeForexRepo{}, bankingClient, &fakeFundUserClient{}, nil)
 
 	resp, err := svc.WithdrawFromFund(fundClientCtx(), 1, dto.WithdrawFromFundRequest{
 		AccountNumber: "client-account",

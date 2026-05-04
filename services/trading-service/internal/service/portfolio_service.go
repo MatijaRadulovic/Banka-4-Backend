@@ -105,6 +105,10 @@ func (s *PortfolioService) GetAllActuaryProfits(ctx context.Context, page, pageS
 	}, nil
 }
 
+func (s *PortfolioService) GetFundPortfolio(ctx context.Context, fundId uint) ([]dto.PortfolioAssetResponse, error) {
+	return s.GetPortfolio(ctx, uint(fundId), model.OwnerTypeFund)
+}
+
 func (s *PortfolioService) GetPortfolio(ctx context.Context, userId uint, ownerType model.OwnerType) ([]dto.PortfolioAssetResponse, error) {
 	ownerships, err := s.ownershipRepo.FindByUserId(ctx, userId, ownerType)
 	if err != nil {
