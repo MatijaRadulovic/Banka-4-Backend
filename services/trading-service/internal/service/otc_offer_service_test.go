@@ -257,7 +257,7 @@ func newOtcTestService(t *testing.T) (*OtcOfferService, *fakeOtcOfferRepo, *fake
 		Asset:        model.Asset{AssetType: model.AssetTypeStock},
 	})
 
-	svc := NewOtcOfferService(offerRepo, contractRepo, ownershipRepo, stockRepo, banking)
+	svc := NewOtcOfferService(offerRepo, contractRepo, ownershipRepo, stockRepo, banking, &fakeUserClient{})
 	return svc, offerRepo, contractRepo, ownershipRepo, banking
 }
 

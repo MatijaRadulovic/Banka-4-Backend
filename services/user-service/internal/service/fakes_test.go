@@ -171,6 +171,7 @@ func (f *fakeActuaryRepo) ResetAllUsedLimits(_ context.Context) error {
 
 type fakeClientRepo struct {
 	byID         *model.Client
+	byIDs        []model.Client
 	byIdentityID *model.Client
 	allClients   []model.Client
 	allTotal     int64
@@ -195,6 +196,10 @@ func (f *fakeClientRepo) FindByIdentityID(_ context.Context, _ uint) (*model.Cli
 
 func (f *fakeClientRepo) FindByID(_ context.Context, id uint) (*model.Client, error) {
 	return f.byID, f.findErr
+}
+
+func (f *fakeClientRepo) FindByIDs(_ context.Context, id []uint) ([]model.Client, error) {
+	return f.byIDs, f.findErr
 }
 
 func (f *fakeClientRepo) FindAll(_ context.Context, _ *dto.ListClientsQuery) ([]model.Client, int64, error) {

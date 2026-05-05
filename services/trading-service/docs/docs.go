@@ -3814,6 +3814,12 @@ const docTemplate = `{
                 "amount": {
                     "type": "integer"
                 },
+                "buyer_bank": {
+                    "type": "string"
+                },
+                "buyer_full_name": {
+                    "type": "string"
+                },
                 "buyer_id": {
                     "type": "integer"
                 },
@@ -3840,6 +3846,12 @@ const docTemplate = `{
                 },
                 "premium": {
                     "type": "number"
+                },
+                "seller_bank": {
+                    "type": "string"
+                },
+                "seller_full_name": {
+                    "type": "string"
                 },
                 "seller_id": {
                     "type": "integer"

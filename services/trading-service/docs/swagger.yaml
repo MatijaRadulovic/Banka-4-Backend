@@ -761,6 +761,10 @@ definitions:
     properties:
       amount:
         type: integer
+      buyer_bank:
+        type: string
+      buyer_full_name:
+        type: string
       buyer_id:
         type: integer
       created_at:
@@ -779,6 +783,10 @@ definitions:
         type: integer
       premium:
         type: number
+      seller_bank:
+        type: string
+      seller_full_name:
+        type: string
       seller_id:
         type: integer
       settlement_date:

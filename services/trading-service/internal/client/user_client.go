@@ -8,6 +8,7 @@ import (
 
 type UserServiceClient interface {
 	GetClientById(ctx context.Context, id uint64) (*pb.GetClientByIdResponse, error)
+	GetClientsByIds(ctx context.Context, ids []uint64) (*pb.GetClientsByIdsResponse, error)
 	GetClientByIdentityId(ctx context.Context, identityId uint64) (*pb.GetClientByIdResponse, error)
 	GetEmployeeById(ctx context.Context, id uint64) (*pb.GetEmployeeByIdResponse, error)
 	GetEmployeeByIdentityId(ctx context.Context, identityId uint64) (*pb.GetEmployeeByIdResponse, error)

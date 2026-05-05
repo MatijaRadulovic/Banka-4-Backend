@@ -6,7 +6,8 @@ option go_package = "common/pkg/pb;pb";
 
 service UserService {
   rpc GetClientById(GetClientByIdRequest)                 returns (GetClientByIdResponse);
-  rpc GetClientByIdentityId(GetClientByIdentityIdRequest)   returns (GetClientByIdResponse);
+  rpc GetClientsByIds(GetClientsByIdsRequest)             returns (GetClientsByIdsResponse);
+  rpc GetClientByIdentityId(GetClientByIdentityIdRequest) returns (GetClientByIdResponse);
   rpc GetEmployeeById(GetEmployeeByIdRequest)             returns (GetEmployeeByIdResponse);
   rpc GetEmployeeByIdentityId(GetEmployeeByIdentityIdRequest) returns (GetEmployeeByIdResponse);
   rpc GetAllClients(GetAllClientsRequest)                 returns (GetAllClientsResponse);
@@ -23,6 +24,14 @@ message GetClientByIdResponse {
   string email       = 2;
   string full_name   = 3;
   uint64 identity_id = 4;
+}
+
+
+message GetClientsByIdsRequest   { 
+  repeated uint64 ids = 1; 
+}
+message GetClientsByIdsResponse {
+  repeated GetClientByIdResponse clients = 1;
 }
 
 message GetEmployeeByIdRequest     { uint64 id      = 1; }

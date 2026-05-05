@@ -113,6 +113,12 @@ func (f *fakeUserClient) GetClientById(_ context.Context, id uint64) (*pb.GetCli
 	}, nil
 }
 
+func (f *fakeUserClient) GetClientsByIds(_ context.Context, ids []uint64) (*pb.GetClientsByIdsResponse, error) {
+	return &pb.GetClientsByIdsResponse{
+		Clients: make([]*pb.GetClientByIdResponse, 0),
+	}, nil
+}
+
 func (f *fakeUserClient) GetEmployeeById(_ context.Context, id uint64) (*pb.GetEmployeeByIdResponse, error) {
 	isSupervisor := f.supervisorIDs[id]
 	isAgent := f.agentIDs[id]
@@ -321,7 +327,7 @@ func setupTestRouterWithPermissions(t *testing.T, db *gorm.DB, perms []permissio
 
 	taxSvc := service.NewTaxService(taxRepo, bankingClient, cfg)
 	otcSvc := service.NewOTCService(assetOwnershipRepo, listingRepo, userClient)
-	otcOfferSvc := service.NewOtcOfferService(otcOfferRepo, otcContractRepo, assetOwnershipRepo, stockRepo, bankingClient)
+	otcOfferSvc := service.NewOtcOfferService(otcOfferRepo, otcContractRepo, assetOwnershipRepo, stockRepo, bankingClient, userClient)
 
 	healthHandler := handler.NewHealthHandler()
 	exchangeHandler := handler.NewExchangeHandler(exchangeSvc)

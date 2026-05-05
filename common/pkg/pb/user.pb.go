@@ -177,6 +177,94 @@ func (x *GetClientByIdResponse) GetIdentityId() uint64 {
 	return 0
 }
 
+type GetClientsByIdsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Ids           []uint64               `protobuf:"varint,1,rep,packed,name=ids,proto3" json:"ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetClientsByIdsRequest) Reset() {
+	*x = GetClientsByIdsRequest{}
+	mi := &file_common_proto_user_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetClientsByIdsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetClientsByIdsRequest) ProtoMessage() {}
+
+func (x *GetClientsByIdsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_common_proto_user_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetClientsByIdsRequest.ProtoReflect.Descriptor instead.
+func (*GetClientsByIdsRequest) Descriptor() ([]byte, []int) {
+	return file_common_proto_user_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *GetClientsByIdsRequest) GetIds() []uint64 {
+	if x != nil {
+		return x.Ids
+	}
+	return nil
+}
+
+type GetClientsByIdsResponse struct {
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	Clients       []*GetClientByIdResponse `protobuf:"bytes,1,rep,name=clients,proto3" json:"clients,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetClientsByIdsResponse) Reset() {
+	*x = GetClientsByIdsResponse{}
+	mi := &file_common_proto_user_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetClientsByIdsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetClientsByIdsResponse) ProtoMessage() {}
+
+func (x *GetClientsByIdsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_common_proto_user_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetClientsByIdsResponse.ProtoReflect.Descriptor instead.
+func (*GetClientsByIdsResponse) Descriptor() ([]byte, []int) {
+	return file_common_proto_user_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *GetClientsByIdsResponse) GetClients() []*GetClientByIdResponse {
+	if x != nil {
+		return x.Clients
+	}
+	return nil
+}
+
 type GetEmployeeByIdRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -186,7 +274,7 @@ type GetEmployeeByIdRequest struct {
 
 func (x *GetEmployeeByIdRequest) Reset() {
 	*x = GetEmployeeByIdRequest{}
-	mi := &file_common_proto_user_proto_msgTypes[3]
+	mi := &file_common_proto_user_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -198,7 +286,7 @@ func (x *GetEmployeeByIdRequest) String() string {
 func (*GetEmployeeByIdRequest) ProtoMessage() {}
 
 func (x *GetEmployeeByIdRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_user_proto_msgTypes[3]
+	mi := &file_common_proto_user_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -211,7 +299,7 @@ func (x *GetEmployeeByIdRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetEmployeeByIdRequest.ProtoReflect.Descriptor instead.
 func (*GetEmployeeByIdRequest) Descriptor() ([]byte, []int) {
-	return file_common_proto_user_proto_rawDescGZIP(), []int{3}
+	return file_common_proto_user_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetEmployeeByIdRequest) GetId() uint64 {
@@ -230,7 +318,7 @@ type GetEmployeeByIdentityIdRequest struct {
 
 func (x *GetEmployeeByIdentityIdRequest) Reset() {
 	*x = GetEmployeeByIdentityIdRequest{}
-	mi := &file_common_proto_user_proto_msgTypes[4]
+	mi := &file_common_proto_user_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -242,7 +330,7 @@ func (x *GetEmployeeByIdentityIdRequest) String() string {
 func (*GetEmployeeByIdentityIdRequest) ProtoMessage() {}
 
 func (x *GetEmployeeByIdentityIdRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_user_proto_msgTypes[4]
+	mi := &file_common_proto_user_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -255,7 +343,7 @@ func (x *GetEmployeeByIdentityIdRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetEmployeeByIdentityIdRequest.ProtoReflect.Descriptor instead.
 func (*GetEmployeeByIdentityIdRequest) Descriptor() ([]byte, []int) {
-	return file_common_proto_user_proto_rawDescGZIP(), []int{4}
+	return file_common_proto_user_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GetEmployeeByIdentityIdRequest) GetIdentityId() uint64 {
@@ -282,7 +370,7 @@ type GetEmployeeByIdResponse struct {
 
 func (x *GetEmployeeByIdResponse) Reset() {
 	*x = GetEmployeeByIdResponse{}
-	mi := &file_common_proto_user_proto_msgTypes[5]
+	mi := &file_common_proto_user_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -294,7 +382,7 @@ func (x *GetEmployeeByIdResponse) String() string {
 func (*GetEmployeeByIdResponse) ProtoMessage() {}
 
 func (x *GetEmployeeByIdResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_user_proto_msgTypes[5]
+	mi := &file_common_proto_user_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -307,7 +395,7 @@ func (x *GetEmployeeByIdResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetEmployeeByIdResponse.ProtoReflect.Descriptor instead.
 func (*GetEmployeeByIdResponse) Descriptor() ([]byte, []int) {
-	return file_common_proto_user_proto_rawDescGZIP(), []int{5}
+	return file_common_proto_user_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GetEmployeeByIdResponse) GetId() uint64 {
@@ -385,7 +473,7 @@ type GetAllClientsRequest struct {
 
 func (x *GetAllClientsRequest) Reset() {
 	*x = GetAllClientsRequest{}
-	mi := &file_common_proto_user_proto_msgTypes[6]
+	mi := &file_common_proto_user_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -397,7 +485,7 @@ func (x *GetAllClientsRequest) String() string {
 func (*GetAllClientsRequest) ProtoMessage() {}
 
 func (x *GetAllClientsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_user_proto_msgTypes[6]
+	mi := &file_common_proto_user_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -410,7 +498,7 @@ func (x *GetAllClientsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAllClientsRequest.ProtoReflect.Descriptor instead.
 func (*GetAllClientsRequest) Descriptor() ([]byte, []int) {
-	return file_common_proto_user_proto_rawDescGZIP(), []int{6}
+	return file_common_proto_user_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetAllClientsRequest) GetPage() int32 {
@@ -453,7 +541,7 @@ type ClientResponse struct {
 
 func (x *ClientResponse) Reset() {
 	*x = ClientResponse{}
-	mi := &file_common_proto_user_proto_msgTypes[7]
+	mi := &file_common_proto_user_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -465,7 +553,7 @@ func (x *ClientResponse) String() string {
 func (*ClientResponse) ProtoMessage() {}
 
 func (x *ClientResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_user_proto_msgTypes[7]
+	mi := &file_common_proto_user_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -478,7 +566,7 @@ func (x *ClientResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClientResponse.ProtoReflect.Descriptor instead.
 func (*ClientResponse) Descriptor() ([]byte, []int) {
-	return file_common_proto_user_proto_rawDescGZIP(), []int{7}
+	return file_common_proto_user_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ClientResponse) GetId() uint64 {
@@ -522,7 +610,7 @@ type GetAllClientsResponse struct {
 
 func (x *GetAllClientsResponse) Reset() {
 	*x = GetAllClientsResponse{}
-	mi := &file_common_proto_user_proto_msgTypes[8]
+	mi := &file_common_proto_user_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -534,7 +622,7 @@ func (x *GetAllClientsResponse) String() string {
 func (*GetAllClientsResponse) ProtoMessage() {}
 
 func (x *GetAllClientsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_user_proto_msgTypes[8]
+	mi := &file_common_proto_user_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -547,7 +635,7 @@ func (x *GetAllClientsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAllClientsResponse.ProtoReflect.Descriptor instead.
 func (*GetAllClientsResponse) Descriptor() ([]byte, []int) {
-	return file_common_proto_user_proto_rawDescGZIP(), []int{8}
+	return file_common_proto_user_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetAllClientsResponse) GetClients() []*ClientResponse {
@@ -597,7 +685,7 @@ type GetAllActuariesRequest struct {
 
 func (x *GetAllActuariesRequest) Reset() {
 	*x = GetAllActuariesRequest{}
-	mi := &file_common_proto_user_proto_msgTypes[9]
+	mi := &file_common_proto_user_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -609,7 +697,7 @@ func (x *GetAllActuariesRequest) String() string {
 func (*GetAllActuariesRequest) ProtoMessage() {}
 
 func (x *GetAllActuariesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_user_proto_msgTypes[9]
+	mi := &file_common_proto_user_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -622,7 +710,7 @@ func (x *GetAllActuariesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAllActuariesRequest.ProtoReflect.Descriptor instead.
 func (*GetAllActuariesRequest) Descriptor() ([]byte, []int) {
-	return file_common_proto_user_proto_rawDescGZIP(), []int{9}
+	return file_common_proto_user_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetAllActuariesRequest) GetPage() int32 {
@@ -665,7 +753,7 @@ type ActuaryResponse struct {
 
 func (x *ActuaryResponse) Reset() {
 	*x = ActuaryResponse{}
-	mi := &file_common_proto_user_proto_msgTypes[10]
+	mi := &file_common_proto_user_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -677,7 +765,7 @@ func (x *ActuaryResponse) String() string {
 func (*ActuaryResponse) ProtoMessage() {}
 
 func (x *ActuaryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_user_proto_msgTypes[10]
+	mi := &file_common_proto_user_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -690,7 +778,7 @@ func (x *ActuaryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActuaryResponse.ProtoReflect.Descriptor instead.
 func (*ActuaryResponse) Descriptor() ([]byte, []int) {
-	return file_common_proto_user_proto_rawDescGZIP(), []int{10}
+	return file_common_proto_user_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ActuaryResponse) GetId() uint64 {
@@ -734,7 +822,7 @@ type GetAllActuariesResponse struct {
 
 func (x *GetAllActuariesResponse) Reset() {
 	*x = GetAllActuariesResponse{}
-	mi := &file_common_proto_user_proto_msgTypes[11]
+	mi := &file_common_proto_user_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -746,7 +834,7 @@ func (x *GetAllActuariesResponse) String() string {
 func (*GetAllActuariesResponse) ProtoMessage() {}
 
 func (x *GetAllActuariesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_user_proto_msgTypes[11]
+	mi := &file_common_proto_user_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -759,7 +847,7 @@ func (x *GetAllActuariesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetAllActuariesResponse.ProtoReflect.Descriptor instead.
 func (*GetAllActuariesResponse) Descriptor() ([]byte, []int) {
-	return file_common_proto_user_proto_rawDescGZIP(), []int{11}
+	return file_common_proto_user_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetAllActuariesResponse) GetActuaries() []*ActuaryResponse {
@@ -807,7 +895,7 @@ type GetIdentityByUserIdRequest struct {
 
 func (x *GetIdentityByUserIdRequest) Reset() {
 	*x = GetIdentityByUserIdRequest{}
-	mi := &file_common_proto_user_proto_msgTypes[12]
+	mi := &file_common_proto_user_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -819,7 +907,7 @@ func (x *GetIdentityByUserIdRequest) String() string {
 func (*GetIdentityByUserIdRequest) ProtoMessage() {}
 
 func (x *GetIdentityByUserIdRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_user_proto_msgTypes[12]
+	mi := &file_common_proto_user_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -832,7 +920,7 @@ func (x *GetIdentityByUserIdRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetIdentityByUserIdRequest.ProtoReflect.Descriptor instead.
 func (*GetIdentityByUserIdRequest) Descriptor() ([]byte, []int) {
-	return file_common_proto_user_proto_rawDescGZIP(), []int{12}
+	return file_common_proto_user_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *GetIdentityByUserIdRequest) GetUserId() uint64 {
@@ -858,7 +946,7 @@ type GetIdentityByUserIdResponse struct {
 
 func (x *GetIdentityByUserIdResponse) Reset() {
 	*x = GetIdentityByUserIdResponse{}
-	mi := &file_common_proto_user_proto_msgTypes[13]
+	mi := &file_common_proto_user_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -870,7 +958,7 @@ func (x *GetIdentityByUserIdResponse) String() string {
 func (*GetIdentityByUserIdResponse) ProtoMessage() {}
 
 func (x *GetIdentityByUserIdResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_user_proto_msgTypes[13]
+	mi := &file_common_proto_user_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -883,7 +971,7 @@ func (x *GetIdentityByUserIdResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetIdentityByUserIdResponse.ProtoReflect.Descriptor instead.
 func (*GetIdentityByUserIdResponse) Descriptor() ([]byte, []int) {
-	return file_common_proto_user_proto_rawDescGZIP(), []int{13}
+	return file_common_proto_user_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *GetIdentityByUserIdResponse) GetIdentityId() uint64 {
@@ -903,7 +991,7 @@ type IncrementUsedLimitRequest struct {
 
 func (x *IncrementUsedLimitRequest) Reset() {
 	*x = IncrementUsedLimitRequest{}
-	mi := &file_common_proto_user_proto_msgTypes[14]
+	mi := &file_common_proto_user_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -915,7 +1003,7 @@ func (x *IncrementUsedLimitRequest) String() string {
 func (*IncrementUsedLimitRequest) ProtoMessage() {}
 
 func (x *IncrementUsedLimitRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_user_proto_msgTypes[14]
+	mi := &file_common_proto_user_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -928,7 +1016,7 @@ func (x *IncrementUsedLimitRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IncrementUsedLimitRequest.ProtoReflect.Descriptor instead.
 func (*IncrementUsedLimitRequest) Descriptor() ([]byte, []int) {
-	return file_common_proto_user_proto_rawDescGZIP(), []int{14}
+	return file_common_proto_user_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *IncrementUsedLimitRequest) GetEmployeeId() uint64 {
@@ -954,7 +1042,7 @@ type IncrementUsedLimitResponse struct {
 
 func (x *IncrementUsedLimitResponse) Reset() {
 	*x = IncrementUsedLimitResponse{}
-	mi := &file_common_proto_user_proto_msgTypes[15]
+	mi := &file_common_proto_user_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -966,7 +1054,7 @@ func (x *IncrementUsedLimitResponse) String() string {
 func (*IncrementUsedLimitResponse) ProtoMessage() {}
 
 func (x *IncrementUsedLimitResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_user_proto_msgTypes[15]
+	mi := &file_common_proto_user_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -979,7 +1067,7 @@ func (x *IncrementUsedLimitResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IncrementUsedLimitResponse.ProtoReflect.Descriptor instead.
 func (*IncrementUsedLimitResponse) Descriptor() ([]byte, []int) {
-	return file_common_proto_user_proto_rawDescGZIP(), []int{15}
+	return file_common_proto_user_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *IncrementUsedLimitResponse) GetUsedLimit() float64 {
@@ -1004,7 +1092,11 @@ const file_common_proto_user_proto_rawDesc = "" +
 	"\x05email\x18\x02 \x01(\tR\x05email\x12\x1b\n" +
 	"\tfull_name\x18\x03 \x01(\tR\bfullName\x12\x1f\n" +
 	"\videntity_id\x18\x04 \x01(\x04R\n" +
-	"identityId\"(\n" +
+	"identityId\"*\n" +
+	"\x16GetClientsByIdsRequest\x12\x10\n" +
+	"\x03ids\x18\x01 \x03(\x04R\x03ids\"S\n" +
+	"\x17GetClientsByIdsResponse\x128\n" +
+	"\aclients\x18\x01 \x03(\v2\x1e.user.v1.GetClientByIdResponseR\aclients\"(\n" +
 	"\x16GetEmployeeByIdRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\"A\n" +
 	"\x1eGetEmployeeByIdentityIdRequest\x12\x1f\n" +
@@ -1073,9 +1165,10 @@ const file_common_proto_user_proto_rawDesc = "" +
 	"\x06amount\x18\x02 \x01(\x01R\x06amount\";\n" +
 	"\x1aIncrementUsedLimitResponse\x12\x1d\n" +
 	"\n" +
-	"used_limit\x18\x01 \x01(\x01R\tusedLimit2\xe0\x05\n" +
+	"used_limit\x18\x01 \x01(\x01R\tusedLimit2\xb6\x06\n" +
 	"\vUserService\x12N\n" +
-	"\rGetClientById\x12\x1d.user.v1.GetClientByIdRequest\x1a\x1e.user.v1.GetClientByIdResponse\x12^\n" +
+	"\rGetClientById\x12\x1d.user.v1.GetClientByIdRequest\x1a\x1e.user.v1.GetClientByIdResponse\x12T\n" +
+	"\x0fGetClientsByIds\x12\x1f.user.v1.GetClientsByIdsRequest\x1a .user.v1.GetClientsByIdsResponse\x12^\n" +
 	"\x15GetClientByIdentityId\x12%.user.v1.GetClientByIdentityIdRequest\x1a\x1e.user.v1.GetClientByIdResponse\x12T\n" +
 	"\x0fGetEmployeeById\x12\x1f.user.v1.GetEmployeeByIdRequest\x1a .user.v1.GetEmployeeByIdResponse\x12d\n" +
 	"\x17GetEmployeeByIdentityId\x12'.user.v1.GetEmployeeByIdentityIdRequest\x1a .user.v1.GetEmployeeByIdResponse\x12N\n" +
@@ -1096,49 +1189,54 @@ func file_common_proto_user_proto_rawDescGZIP() []byte {
 	return file_common_proto_user_proto_rawDescData
 }
 
-var file_common_proto_user_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_common_proto_user_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_common_proto_user_proto_goTypes = []any{
 	(*GetClientByIdRequest)(nil),           // 0: user.v1.GetClientByIdRequest
 	(*GetClientByIdentityIdRequest)(nil),   // 1: user.v1.GetClientByIdentityIdRequest
 	(*GetClientByIdResponse)(nil),          // 2: user.v1.GetClientByIdResponse
-	(*GetEmployeeByIdRequest)(nil),         // 3: user.v1.GetEmployeeByIdRequest
-	(*GetEmployeeByIdentityIdRequest)(nil), // 4: user.v1.GetEmployeeByIdentityIdRequest
-	(*GetEmployeeByIdResponse)(nil),        // 5: user.v1.GetEmployeeByIdResponse
-	(*GetAllClientsRequest)(nil),           // 6: user.v1.GetAllClientsRequest
-	(*ClientResponse)(nil),                 // 7: user.v1.ClientResponse
-	(*GetAllClientsResponse)(nil),          // 8: user.v1.GetAllClientsResponse
-	(*GetAllActuariesRequest)(nil),         // 9: user.v1.GetAllActuariesRequest
-	(*ActuaryResponse)(nil),                // 10: user.v1.ActuaryResponse
-	(*GetAllActuariesResponse)(nil),        // 11: user.v1.GetAllActuariesResponse
-	(*GetIdentityByUserIdRequest)(nil),     // 12: user.v1.GetIdentityByUserIdRequest
-	(*GetIdentityByUserIdResponse)(nil),    // 13: user.v1.GetIdentityByUserIdResponse
-	(*IncrementUsedLimitRequest)(nil),      // 14: user.v1.IncrementUsedLimitRequest
-	(*IncrementUsedLimitResponse)(nil),     // 15: user.v1.IncrementUsedLimitResponse
+	(*GetClientsByIdsRequest)(nil),         // 3: user.v1.GetClientsByIdsRequest
+	(*GetClientsByIdsResponse)(nil),        // 4: user.v1.GetClientsByIdsResponse
+	(*GetEmployeeByIdRequest)(nil),         // 5: user.v1.GetEmployeeByIdRequest
+	(*GetEmployeeByIdentityIdRequest)(nil), // 6: user.v1.GetEmployeeByIdentityIdRequest
+	(*GetEmployeeByIdResponse)(nil),        // 7: user.v1.GetEmployeeByIdResponse
+	(*GetAllClientsRequest)(nil),           // 8: user.v1.GetAllClientsRequest
+	(*ClientResponse)(nil),                 // 9: user.v1.ClientResponse
+	(*GetAllClientsResponse)(nil),          // 10: user.v1.GetAllClientsResponse
+	(*GetAllActuariesRequest)(nil),         // 11: user.v1.GetAllActuariesRequest
+	(*ActuaryResponse)(nil),                // 12: user.v1.ActuaryResponse
+	(*GetAllActuariesResponse)(nil),        // 13: user.v1.GetAllActuariesResponse
+	(*GetIdentityByUserIdRequest)(nil),     // 14: user.v1.GetIdentityByUserIdRequest
+	(*GetIdentityByUserIdResponse)(nil),    // 15: user.v1.GetIdentityByUserIdResponse
+	(*IncrementUsedLimitRequest)(nil),      // 16: user.v1.IncrementUsedLimitRequest
+	(*IncrementUsedLimitResponse)(nil),     // 17: user.v1.IncrementUsedLimitResponse
 }
 var file_common_proto_user_proto_depIdxs = []int32{
-	7,  // 0: user.v1.GetAllClientsResponse.clients:type_name -> user.v1.ClientResponse
-	10, // 1: user.v1.GetAllActuariesResponse.actuaries:type_name -> user.v1.ActuaryResponse
-	0,  // 2: user.v1.UserService.GetClientById:input_type -> user.v1.GetClientByIdRequest
-	1,  // 3: user.v1.UserService.GetClientByIdentityId:input_type -> user.v1.GetClientByIdentityIdRequest
-	3,  // 4: user.v1.UserService.GetEmployeeById:input_type -> user.v1.GetEmployeeByIdRequest
-	4,  // 5: user.v1.UserService.GetEmployeeByIdentityId:input_type -> user.v1.GetEmployeeByIdentityIdRequest
-	6,  // 6: user.v1.UserService.GetAllClients:input_type -> user.v1.GetAllClientsRequest
-	9,  // 7: user.v1.UserService.GetAllActuaries:input_type -> user.v1.GetAllActuariesRequest
-	12, // 8: user.v1.UserService.GetIdentityByUserId:input_type -> user.v1.GetIdentityByUserIdRequest
-	14, // 9: user.v1.UserService.IncrementUsedLimit:input_type -> user.v1.IncrementUsedLimitRequest
-	2,  // 10: user.v1.UserService.GetClientById:output_type -> user.v1.GetClientByIdResponse
-	2,  // 11: user.v1.UserService.GetClientByIdentityId:output_type -> user.v1.GetClientByIdResponse
-	5,  // 12: user.v1.UserService.GetEmployeeById:output_type -> user.v1.GetEmployeeByIdResponse
-	5,  // 13: user.v1.UserService.GetEmployeeByIdentityId:output_type -> user.v1.GetEmployeeByIdResponse
-	8,  // 14: user.v1.UserService.GetAllClients:output_type -> user.v1.GetAllClientsResponse
-	11, // 15: user.v1.UserService.GetAllActuaries:output_type -> user.v1.GetAllActuariesResponse
-	13, // 16: user.v1.UserService.GetIdentityByUserId:output_type -> user.v1.GetIdentityByUserIdResponse
-	15, // 17: user.v1.UserService.IncrementUsedLimit:output_type -> user.v1.IncrementUsedLimitResponse
-	10, // [10:18] is the sub-list for method output_type
-	2,  // [2:10] is the sub-list for method input_type
-	2,  // [2:2] is the sub-list for extension type_name
-	2,  // [2:2] is the sub-list for extension extendee
-	0,  // [0:2] is the sub-list for field type_name
+	2,  // 0: user.v1.GetClientsByIdsResponse.clients:type_name -> user.v1.GetClientByIdResponse
+	9,  // 1: user.v1.GetAllClientsResponse.clients:type_name -> user.v1.ClientResponse
+	12, // 2: user.v1.GetAllActuariesResponse.actuaries:type_name -> user.v1.ActuaryResponse
+	0,  // 3: user.v1.UserService.GetClientById:input_type -> user.v1.GetClientByIdRequest
+	3,  // 4: user.v1.UserService.GetClientsByIds:input_type -> user.v1.GetClientsByIdsRequest
+	1,  // 5: user.v1.UserService.GetClientByIdentityId:input_type -> user.v1.GetClientByIdentityIdRequest
+	5,  // 6: user.v1.UserService.GetEmployeeById:input_type -> user.v1.GetEmployeeByIdRequest
+	6,  // 7: user.v1.UserService.GetEmployeeByIdentityId:input_type -> user.v1.GetEmployeeByIdentityIdRequest
+	8,  // 8: user.v1.UserService.GetAllClients:input_type -> user.v1.GetAllClientsRequest
+	11, // 9: user.v1.UserService.GetAllActuaries:input_type -> user.v1.GetAllActuariesRequest
+	14, // 10: user.v1.UserService.GetIdentityByUserId:input_type -> user.v1.GetIdentityByUserIdRequest
+	16, // 11: user.v1.UserService.IncrementUsedLimit:input_type -> user.v1.IncrementUsedLimitRequest
+	2,  // 12: user.v1.UserService.GetClientById:output_type -> user.v1.GetClientByIdResponse
+	4,  // 13: user.v1.UserService.GetClientsByIds:output_type -> user.v1.GetClientsByIdsResponse
+	2,  // 14: user.v1.UserService.GetClientByIdentityId:output_type -> user.v1.GetClientByIdResponse
+	7,  // 15: user.v1.UserService.GetEmployeeById:output_type -> user.v1.GetEmployeeByIdResponse
+	7,  // 16: user.v1.UserService.GetEmployeeByIdentityId:output_type -> user.v1.GetEmployeeByIdResponse
+	10, // 17: user.v1.UserService.GetAllClients:output_type -> user.v1.GetAllClientsResponse
+	13, // 18: user.v1.UserService.GetAllActuaries:output_type -> user.v1.GetAllActuariesResponse
+	15, // 19: user.v1.UserService.GetIdentityByUserId:output_type -> user.v1.GetIdentityByUserIdResponse
+	17, // 20: user.v1.UserService.IncrementUsedLimit:output_type -> user.v1.IncrementUsedLimitResponse
+	12, // [12:21] is the sub-list for method output_type
+	3,  // [3:12] is the sub-list for method input_type
+	3,  // [3:3] is the sub-list for extension type_name
+	3,  // [3:3] is the sub-list for extension extendee
+	0,  // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_common_proto_user_proto_init() }
@@ -1152,7 +1250,7 @@ func file_common_proto_user_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_common_proto_user_proto_rawDesc), len(file_common_proto_user_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

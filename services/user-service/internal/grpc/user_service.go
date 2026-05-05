@@ -43,6 +43,41 @@ func (s *UserService) GetClientById(ctx context.Context, req *pb.GetClientByIdRe
 	}, nil
 }
 
+func (s *UserService) GetClientsByIds(
+	ctx context.Context,
+	req *pb.GetClientsByIdsRequest,
+) (*pb.GetClientsByIdsResponse, error) {
+
+	ids := make([]uint, 0, len(req.Ids))
+	for _, id := range req.Ids {
+		ids = append(ids, uint(id))
+	}
+
+	clients, err := s.clientRepo.FindByIDs(ctx, ids)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to fetch clients: %v", err)
+	}
+
+	if len(clients) == 0 {
+		return nil, status.Errorf(codes.NotFound, "clients not found")
+	}
+
+	resp := &pb.GetClientsByIdsResponse{
+		Clients: make([]*pb.GetClientByIdResponse, 0, len(clients)),
+	}
+
+	for _, client := range clients {
+		resp.Clients = append(resp.Clients, &pb.GetClientByIdResponse{
+			Id:         uint64(client.ClientID),
+			Email:      client.Identity.Email,
+			FullName:   client.FirstName + " " + client.LastName,
+			IdentityId: uint64(client.IdentityID),
+		})
+	}
+
+	return resp, nil
+}
+
 func (s *UserService) GetEmployeeById(ctx context.Context, req *pb.GetEmployeeByIdRequest) (*pb.GetEmployeeByIdResponse, error) {
 	employee, err := s.employeeRepo.FindByID(ctx, uint(req.Id))
 	if err != nil {

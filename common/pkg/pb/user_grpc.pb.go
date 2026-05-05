@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	UserService_GetClientById_FullMethodName           = "/user.v1.UserService/GetClientById"
+	UserService_GetClientsByIds_FullMethodName         = "/user.v1.UserService/GetClientsByIds"
 	UserService_GetClientByIdentityId_FullMethodName   = "/user.v1.UserService/GetClientByIdentityId"
 	UserService_GetEmployeeById_FullMethodName         = "/user.v1.UserService/GetEmployeeById"
 	UserService_GetEmployeeByIdentityId_FullMethodName = "/user.v1.UserService/GetEmployeeByIdentityId"
@@ -34,6 +35,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type UserServiceClient interface {
 	GetClientById(ctx context.Context, in *GetClientByIdRequest, opts ...grpc.CallOption) (*GetClientByIdResponse, error)
+	GetClientsByIds(ctx context.Context, in *GetClientsByIdsRequest, opts ...grpc.CallOption) (*GetClientsByIdsResponse, error)
 	GetClientByIdentityId(ctx context.Context, in *GetClientByIdentityIdRequest, opts ...grpc.CallOption) (*GetClientByIdResponse, error)
 	GetEmployeeById(ctx context.Context, in *GetEmployeeByIdRequest, opts ...grpc.CallOption) (*GetEmployeeByIdResponse, error)
 	GetEmployeeByIdentityId(ctx context.Context, in *GetEmployeeByIdentityIdRequest, opts ...grpc.CallOption) (*GetEmployeeByIdResponse, error)
@@ -55,6 +57,16 @@ func (c *userServiceClient) GetClientById(ctx context.Context, in *GetClientById
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetClientByIdResponse)
 	err := c.cc.Invoke(ctx, UserService_GetClientById_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userServiceClient) GetClientsByIds(ctx context.Context, in *GetClientsByIdsRequest, opts ...grpc.CallOption) (*GetClientsByIdsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetClientsByIdsResponse)
+	err := c.cc.Invoke(ctx, UserService_GetClientsByIds_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -136,6 +148,7 @@ func (c *userServiceClient) IncrementUsedLimit(ctx context.Context, in *Incremen
 // for forward compatibility.
 type UserServiceServer interface {
 	GetClientById(context.Context, *GetClientByIdRequest) (*GetClientByIdResponse, error)
+	GetClientsByIds(context.Context, *GetClientsByIdsRequest) (*GetClientsByIdsResponse, error)
 	GetClientByIdentityId(context.Context, *GetClientByIdentityIdRequest) (*GetClientByIdResponse, error)
 	GetEmployeeById(context.Context, *GetEmployeeByIdRequest) (*GetEmployeeByIdResponse, error)
 	GetEmployeeByIdentityId(context.Context, *GetEmployeeByIdentityIdRequest) (*GetEmployeeByIdResponse, error)
@@ -155,6 +168,9 @@ type UnimplementedUserServiceServer struct{}
 
 func (UnimplementedUserServiceServer) GetClientById(context.Context, *GetClientByIdRequest) (*GetClientByIdResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetClientById not implemented")
+}
+func (UnimplementedUserServiceServer) GetClientsByIds(context.Context, *GetClientsByIdsRequest) (*GetClientsByIdsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetClientsByIds not implemented")
 }
 func (UnimplementedUserServiceServer) GetClientByIdentityId(context.Context, *GetClientByIdentityIdRequest) (*GetClientByIdResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetClientByIdentityId not implemented")
@@ -212,6 +228,24 @@ func _UserService_GetClientById_Handler(srv interface{}, ctx context.Context, de
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(UserServiceServer).GetClientById(ctx, req.(*GetClientByIdRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserService_GetClientsByIds_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetClientsByIdsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).GetClientsByIds(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_GetClientsByIds_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).GetClientsByIds(ctx, req.(*GetClientsByIdsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -352,6 +386,10 @@ var UserService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetClientById",
 			Handler:    _UserService_GetClientById_Handler,
+		},
+		{
+			MethodName: "GetClientsByIds",
+			Handler:    _UserService_GetClientsByIds_Handler,
 		},
 		{
 			MethodName: "GetClientByIdentityId",

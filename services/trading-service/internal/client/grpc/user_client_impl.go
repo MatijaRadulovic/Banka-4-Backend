@@ -24,6 +24,14 @@ func (c *UserServiceClient) GetClientById(ctx context.Context, id uint64) (*pb.G
 	return resp, nil
 }
 
+func (c *UserServiceClient) GetClientsByIds(ctx context.Context, ids []uint64) (*pb.GetClientsByIdsResponse, error) {
+	resp, err := c.stub.GetClientsByIds(ctx, &pb.GetClientsByIdsRequest{Ids: ids})
+	if err != nil {
+		return nil, fmt.Errorf("user client GetClientsByIds: %w", err)
+	}
+	return resp, nil
+}
+
 func (c *UserServiceClient) GetEmployeeById(ctx context.Context, id uint64) (*pb.GetEmployeeByIdResponse, error) {
 	resp, err := c.stub.GetEmployeeById(ctx, &pb.GetEmployeeByIdRequest{Id: id})
 	if err != nil {

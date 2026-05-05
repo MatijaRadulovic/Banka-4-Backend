@@ -58,6 +58,27 @@ func (r *clientRepository) FindByID(ctx context.Context, id uint) (*model.Client
 	}
 	return &c, nil
 }
+
+func (r *clientRepository) FindByIDs(ctx context.Context, ids []uint) ([]model.Client, error) {
+	var clients []model.Client
+
+	if len(ids) == 0 {
+		return clients, nil
+	}
+
+	result := r.db.WithContext(ctx).
+		Preload("Permissions").
+		Preload("Identity").
+		Where("client_id IN ?", ids).
+		Find(&clients)
+
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return clients, nil
+}
+
 func (r *clientRepository) FindAll(ctx context.Context, query *dto.ListClientsQuery) ([]model.Client, int64, error) {
 	var clients []model.Client
 	var count int64

@@ -63,22 +63,29 @@ type OtcOfferResponse struct {
 }
 
 type OtcOptionContractResponse struct {
-	OtcOptionContractID uint       `json:"otc_option_contract_id"`
-	OtcOfferID          uint       `json:"otc_offer_id"`
-	BuyerID             uint       `json:"buyer_id"`
-	SellerID            uint       `json:"seller_id"`
-	StockAssetID        uint       `json:"stock_asset_id"`
-	Ticker              string     `json:"ticker,omitempty"`
-	StockName           string     `json:"stock_name,omitempty"`
-	Amount              int        `json:"amount"`
-	ListingCurrency     string     `json:"listing_currency"`
-	StrikePrice         float64    `json:"strike_price"`
-	CurrentPrice        *float64   `json:"current_price"`
-	Premium             float64    `json:"premium"`
-	SettlementDate      time.Time  `json:"settlement_date"`
-	IsExercised         bool       `json:"is_exercised"`
-	ExercisedAt         *time.Time `json:"exercised_at,omitempty"`
-	CreatedAt           time.Time  `json:"created_at"`
+	OtcOptionContractID uint `json:"otc_option_contract_id"`
+	OtcOfferID          uint `json:"otc_offer_id"`
+
+	BuyerID       uint   `json:"buyer_id"`
+	BuyerFullName string `json:"buyer_full_name"`
+	BuyerBank     string `json:"buyer_bank"`
+
+	SellerID       uint   `json:"seller_id"`
+	SellerFullName string `json:"seller_full_name"`
+	SellerBank     string `json:"seller_bank"`
+
+	StockAssetID    uint       `json:"stock_asset_id"`
+	Ticker          string     `json:"ticker,omitempty"`
+	StockName       string     `json:"stock_name,omitempty"`
+	Amount          int        `json:"amount"`
+	ListingCurrency string     `json:"listing_currency"`
+	StrikePrice     float64    `json:"strike_price"`
+	CurrentPrice    *float64   `json:"current_price"`
+	Premium         float64    `json:"premium"`
+	SettlementDate  time.Time  `json:"settlement_date"`
+	IsExercised     bool       `json:"is_exercised"`
+	ExercisedAt     *time.Time `json:"exercised_at,omitempty"`
+	CreatedAt       time.Time  `json:"created_at"`
 }
 
 func ToOtcOfferResponse(o model.OtcOffer) OtcOfferResponse {

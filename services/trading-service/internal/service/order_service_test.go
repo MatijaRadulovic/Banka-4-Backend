@@ -174,6 +174,8 @@ type fakeUserServiceClient struct {
 	employeeErr  error
 	clientResp   *pb.GetClientByIdResponse
 	clientErr    error
+	clientsResp  *pb.GetClientsByIdsResponse
+	clientsErr   error
 	identityResp *pb.GetIdentityByUserIdResponse
 	identityErr  error
 
@@ -190,6 +192,10 @@ func (c *fakeUserServiceClient) GetEmployeeById(_ context.Context, _ uint64) (*p
 
 func (c *fakeUserServiceClient) GetClientById(_ context.Context, _ uint64) (*pb.GetClientByIdResponse, error) {
 	return c.clientResp, c.clientErr
+}
+
+func (c *fakeUserServiceClient) GetClientsByIds(_ context.Context, _ []uint64) (*pb.GetClientsByIdsResponse, error) {
+	return c.clientsResp, c.clientsErr
 }
 
 func (c *fakeUserServiceClient) GetClientByIdentityId(_ context.Context, _ uint64) (*pb.GetClientByIdResponse, error) {
