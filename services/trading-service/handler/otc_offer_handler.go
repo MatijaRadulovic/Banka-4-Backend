@@ -198,12 +198,12 @@ func (h *OtcOfferHandler) GetMyOptionContracts(c *gin.Context) {
 		_ = c.Error(err)
 		return
 	}
-	contracts, err := h.service.GetOptionContractsForUser(c.Request.Context(), userID)
+	resp, err := h.service.GetOptionContractsForUser(c.Request.Context(), userID)
 	if err != nil {
 		_ = c.Error(err)
 		return
 	}
-	c.JSON(http.StatusOK, dto.ToOtcOptionContractResponseList(contracts))
+	c.JSON(http.StatusOK, resp)
 }
 
 // parseOfferID extracts and validates the :id path parameter as a uint.

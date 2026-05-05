@@ -46,6 +46,7 @@ func (r *otcOptionContractRepositoryImpl) FindForUser(ctx context.Context, userI
 	err := r.db.WithContext(ctx).
 		Preload("Stock").
 		Preload("Stock.Asset").
+		Preload("Stock.Listing.Exchange").
 		Where("buyer_id = ? OR seller_id = ?", userID, userID).
 		Order("created_at DESC").
 		Find(&contracts).Error

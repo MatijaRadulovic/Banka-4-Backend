@@ -71,7 +71,9 @@ type OtcOptionContractResponse struct {
 	Ticker              string     `json:"ticker,omitempty"`
 	StockName           string     `json:"stock_name,omitempty"`
 	Amount              int        `json:"amount"`
+	ListingCurrency     string     `json:"listing_currency"`
 	StrikePrice         float64    `json:"strike_price"`
+	CurrentPrice        *float64   `json:"current_price"`
 	Premium             float64    `json:"premium"`
 	SettlementDate      time.Time  `json:"settlement_date"`
 	IsExercised         bool       `json:"is_exercised"`

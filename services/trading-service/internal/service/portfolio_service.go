@@ -210,6 +210,7 @@ func (s *PortfolioService) GetPortfolio(ctx context.Context, userId uint, ownerT
 		}
 
 		result = append(result, dto.PortfolioAssetResponse{
+			OwnershipID:     o.AssetOwnershipID,
 			AssetID:         o.AssetID,
 			Type:            m.assetType,
 			Ticker:          ticker,

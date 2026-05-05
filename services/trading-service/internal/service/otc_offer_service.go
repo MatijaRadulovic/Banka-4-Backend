@@ -348,12 +348,68 @@ func (s *OtcOfferService) GetActiveOffersForUser(ctx context.Context, userID uin
 }
 
 // GetOptionContractsForUser returns all option contracts in which the given user participates.
-func (s *OtcOfferService) GetOptionContractsForUser(ctx context.Context, userID uint) ([]model.OtcOptionContract, error) {
+func (s *OtcOfferService) GetOptionContractsForUser(
+	ctx context.Context,
+	userID uint,
+) ([]dto.OtcOptionContractResponse, error) {
+
 	contracts, err := s.optionContractRepo.FindForUser(ctx, userID)
 	if err != nil {
 		return nil, errors.InternalErr(err)
 	}
-	return contracts, nil
+
+	// 1. Collect AssetIDs
+	assetIDSet := make(map[uint]struct{})
+	for _, c := range contracts {
+		assetIDSet[c.StockAssetID] = struct{}{}
+	}
+
+	assetIDs := make([]uint, 0, len(assetIDSet))
+	for id := range assetIDSet {
+		assetIDs = append(assetIDs, id)
+	}
+
+	// 2. Fetch stocks
+	stocks, err := s.stockRepo.FindByAssetIDs(ctx, assetIDs)
+	if err != nil {
+		return nil, errors.InternalErr(err)
+	}
+
+	// 3. Build maps: AssetID -> Price, Currency
+	priceMap := make(map[uint]float64)
+	currencyMap := make(map[uint]string)
+
+	for _, stock := range stocks {
+		if stock.Listing != nil {
+			priceMap[stock.AssetID] = stock.Listing.Price
+
+			if stock.Listing.Exchange != nil {
+				currencyMap[stock.AssetID] = stock.Listing.Exchange.Currency
+			}
+		}
+	}
+
+	// 4. Convert to DTO
+	resp := dto.ToOtcOptionContractResponseList(contracts)
+
+	// 5. Inject values
+	for i := range resp {
+		assetID := resp[i].StockAssetID
+
+		if price, ok := priceMap[assetID]; ok {
+			resp[i].CurrentPrice = &price
+		} else {
+			resp[i].CurrentPrice = nil
+		}
+
+		if currency, ok := currencyMap[assetID]; ok {
+			resp[i].ListingCurrency = currency
+		} else {
+			resp[i].ListingCurrency = ""
+		}
+	}
+
+	return resp, nil
 }
 
 // --- helpers ---
