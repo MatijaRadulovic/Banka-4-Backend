@@ -15,7 +15,6 @@ import (
 )
 
 // ── Fake Fund Repo (extended for GetFundDetail) ───────────────────────────────
-
 type fakeFundRepo struct {
 	findByIDResult   *model.InvestmentFund
 	findByIDErr      error
@@ -35,14 +34,19 @@ type fakeFundRepo struct {
 	findAllErr          error
 	findByManagerResult []model.InvestmentFund
 	findByManagerErr    error
+
+	updateManagerIDResult int64
+	updateManagerIDErr    error
 }
 
 func (f *fakeFundRepo) FindByName(ctx context.Context, name string) (*model.InvestmentFund, error) {
 	return f.findByNameResult, f.findByNameErr
 }
+
 func (f *fakeFundRepo) FindByID(ctx context.Context, id uint) (*model.InvestmentFund, error) {
 	return f.findByIDResult, f.findByIDErr
 }
+
 func (f *fakeFundRepo) FindByAccountNumber(ctx context.Context, accountNumber string) (*model.InvestmentFund, error) {
 	return nil, nil
 }
@@ -67,6 +71,7 @@ func (f *fakeFundRepo) Create(ctx context.Context, fund *model.InvestmentFund) e
 	f.created = fund
 	return nil
 }
+
 func (f *fakeFundRepo) FindHoldings(ctx context.Context, fundID uint) ([]model.AssetOwnership, error) {
 	return f.findHoldingsResult, f.findHoldingsErr
 }
@@ -74,8 +79,13 @@ func (f *fakeFundRepo) FindHoldings(ctx context.Context, fundID uint) ([]model.A
 func (f *fakeFundRepo) GetPerformanceHistory(ctx context.Context, fundID uint, limit int) ([]model.FundPerformance, error) {
 	return f.getPerformanceHistoryResult, f.getPerformanceHistoryErr
 }
+
 func (f *fakeFundRepo) SavePerformanceSnapshot(ctx context.Context, perf *model.FundPerformance) error {
 	return nil
+}
+
+func (f *fakeFundRepo) UpdateManagerID(ctx context.Context, fromManagerID uint, toManagerID uint) (int64, error) {
+	return f.updateManagerIDResult, f.updateManagerIDErr
 }
 
 // ── Fake Position / Investment Repos (unchanged) ─────────────────────────────
@@ -799,4 +809,37 @@ func fundClientCtx() context.Context {
 		IdentityType: auth.IdentityClient,
 		ClientID:     &clientID,
 	})
+}
+func TestTransferFunds_Success(t *testing.T) {
+	// 1. Priprema: želimo da simuliramo da je menadžer 2 imao 5 fondova
+	fundRepo := &fakeFundRepo{
+		updateManagerIDResult: 5,
+		updateManagerIDErr:    nil,
+	}
+
+	// 2. Kreiranje servisa sa tvojim tačnim parametrima
+	// Koristimo tvoj NewInvestmentFundService i prosleđujemo fejove gde treba
+	svc := NewInvestmentFundService(
+		fundRepo, // tvoj mock repo
+		&fakePositionRepo{},
+		&fakeListingRepo{},
+		&fakeInvestmentRepo{},
+		&fakeRedemptionRepo{},
+		&fakeAssetOwnershipRepo{},
+		&fakeExchangeRepo{},
+		&fakeStockRepo{},
+		&fakeOptionRepo{},
+		&fakeFuturesRepo{},
+		&fakeForexRepo{},
+		&fakeFundBankingClient{},
+		&fakeFundUserClient{},
+		nil, // scheduler
+	)
+
+	// 3. Izvršavanje: pokušavamo da prebacimo sa menadžera 2 na menadžera 1
+	count, err := svc.TransferFunds(context.Background(), 2, 1)
+
+	// 4. Provera rezultata
+	require.NoError(t, err)
+	require.Equal(t, 5, count, "Servis bi trebalo da javi da je prebačeno 5 fondova")
 }
