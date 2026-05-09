@@ -152,6 +152,7 @@ func setupTestRouter(t *testing.T, db *gorm.DB) *gin.Engine {
 	actuarySvc := service.NewActuaryService(
 		actuaryRepo,
 		empRepo,
+		nil,
 	)
 
 	clientSvc := service.NewClientService(
