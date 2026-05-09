@@ -800,8 +800,6 @@ definitions:
         type: number
       exercised_at:
         type: string
-      is_exercised:
-        type: boolean
       listing_currency:
         type: string
       otc_offer_id:

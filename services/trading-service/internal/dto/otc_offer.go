@@ -86,7 +86,6 @@ type OtcOptionContractResponse struct {
 	BuyerAccountNumber  string                        `json:"buyer_account_number"`
 	SellerAccountNumber string                        `json:"seller_account_number"`
 	Status              model.OtcOptionContractStatus `json:"status"`
-	IsExercised         bool                          `json:"is_exercised"`
 	ExercisedAt         *time.Time                    `json:"exercised_at,omitempty"`
 	CreatedAt           time.Time                     `json:"created_at"`
 }
@@ -153,7 +152,6 @@ func ToOtcOptionContractResponse(c model.OtcOptionContract) OtcOptionContractRes
 		BuyerAccountNumber:  c.BuyerAccountNumber,
 		SellerAccountNumber: c.SellerAccountNumber,
 		Status:              c.Status,
-		IsExercised:         c.IsExercised,
 		ExercisedAt:         c.ExercisedAt,
 		CreatedAt:           c.CreatedAt,
 	}

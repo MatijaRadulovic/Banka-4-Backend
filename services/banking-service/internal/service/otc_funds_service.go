@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	commonerrors "github.com/RAF-SI-2025/Banka-4-Backend/common/pkg/errors"
@@ -208,8 +209,23 @@ func (s *OtcFundsService) Commit(ctx context.Context, executionID string) (*mode
 			return commonerrors.NotFoundErr("seller account not found")
 		}
 
+		// A reserved OTC transfer must still be reflected in the buyer account as
+		// Balance-AvailableBalance; otherwise the reservation state is inconsistent.
+		reservedBuyerFunds := buyerAccount.Balance - buyerAccount.AvailableBalance
+		if reservedBuyerFunds < reservation.SourceAmount {
+			return commonerrors.InternalErr(fmt.Errorf(
+				"reserved buyer funds are inconsistent for OTC commit: reserved=%.2f required=%.2f",
+				reservedBuyerFunds,
+				reservation.SourceAmount,
+			))
+		}
+
 		if buyerAccount.Balance < reservation.SourceAmount {
-			return commonerrors.BadRequestErr("insufficient buyer balance for commit")
+			return commonerrors.InternalErr(fmt.Errorf(
+				"buyer balance is below reserved OTC funds: balance=%.2f required=%.2f",
+				buyerAccount.Balance,
+				reservation.SourceAmount,
+			))
 		}
 
 		buyerAccount.Balance -= reservation.SourceAmount
@@ -261,6 +277,8 @@ func (s *OtcFundsService) Refund(ctx context.Context, executionID string) (*mode
 			return commonerrors.NotFoundErr("seller account not found")
 		}
 
+		// We require both ledger and available funds on the seller side because
+		// previously committed OTC proceeds may have become reserved/blocked before refund.
 		if sellerAccount.Balance < reservation.DestinationAmount || sellerAccount.AvailableBalance < reservation.DestinationAmount {
 			return commonerrors.BadRequestErr("insufficient seller funds for refund")
 		}

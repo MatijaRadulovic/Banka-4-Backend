@@ -247,6 +247,19 @@ func TestCommitRejectsReleasedReservation(t *testing.T) {
 	require.Contains(t, err.Error(), "cannot commit released OTC funds")
 }
 
+func TestCommitFailsWhenReservedFundsAreInconsistent(t *testing.T) {
+	svc, accountRepo, _ := newServiceForTest(testAccount("BUYER", 1000), testAccount("SELLER", 250))
+
+	_, err := svc.Reserve(context.Background(), "exec-5c-inconsistent", "BUYER", "SELLER", 300, model.RSD)
+	require.NoError(t, err)
+
+	accountRepo.accounts["BUYER"].AvailableBalance = 900
+
+	_, err = svc.Commit(context.Background(), "exec-5c-inconsistent")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "reserved buyer funds are inconsistent")
+}
+
 func TestRefundRejectsUncommittedReservation(t *testing.T) {
 	svc, _, _ := newServiceForTest(testAccount("BUYER", 1000), testAccount("SELLER", 250))
 

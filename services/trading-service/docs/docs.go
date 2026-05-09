@@ -3932,9 +3932,6 @@ const docTemplate = `{
                 "exercised_at": {
                     "type": "string"
                 },
-                "is_exercised": {
-                    "type": "boolean"
-                },
                 "listing_currency": {
                     "type": "string"
                 },

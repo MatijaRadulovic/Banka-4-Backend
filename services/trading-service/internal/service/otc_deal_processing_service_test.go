@@ -678,7 +678,6 @@ func TestOtcDealProcessingServiceExerciseContractCompletesSaga(t *testing.T) {
 
 	storedContract := contractRepo.contracts[contract.OtcOptionContractID]
 	require.Equal(t, model.OtcOptionContractStatusExercised, storedContract.Status)
-	require.True(t, storedContract.IsExercised)
 	require.NotNil(t, storedContract.ExercisedAt)
 
 	storedReservation := reservationRepo.byContract[contract.OtcOptionContractID]
@@ -994,7 +993,7 @@ func TestOtcDealProcessingServiceExerciseContractReleasesFundsWhenSharesConfirmF
 
 	storedContract := contractRepo.contracts[contract.OtcOptionContractID]
 	require.Equal(t, model.OtcOptionContractStatusActive, storedContract.Status)
-	require.False(t, storedContract.IsExercised)
+	require.Nil(t, storedContract.ExercisedAt)
 
 	storedReservation := reservationRepo.byContract[contract.OtcOptionContractID]
 	require.Equal(t, model.OtcShareReservationStatusActive, storedReservation.Status)
@@ -1066,7 +1065,7 @@ func TestOtcDealProcessingServiceExerciseContractRefundsFundsWhenOwnershipTransf
 
 	storedContract := contractRepo.contracts[contract.OtcOptionContractID]
 	require.Equal(t, model.OtcOptionContractStatusActive, storedContract.Status)
-	require.False(t, storedContract.IsExercised)
+	require.Nil(t, storedContract.ExercisedAt)
 
 	storedReservation := reservationRepo.byContract[contract.OtcOptionContractID]
 	require.Equal(t, model.OtcShareReservationStatusActive, storedReservation.Status)

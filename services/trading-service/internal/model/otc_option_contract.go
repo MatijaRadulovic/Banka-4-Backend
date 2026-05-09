@@ -44,10 +44,9 @@ type OtcOptionContract struct {
 	SellerAccountNumber string    `gorm:"not null;size:64"`
 
 	// Status izvršenja opcije. Spec scenariji:
-	//   - cena poraste -> kupac iskorišćava (IsExercised=true, kupoprodaja po SAGA)
+	//   - cena poraste -> kupac iskorišćava (status=EXERCISED, kupoprodaja po SAGA)
 	//   - cena padne   -> kupac ne iskorišćava, opcija ekspirira (gubi premiju)
 	Status      OtcOptionContractStatus `gorm:"not null;size:20;default:'ACTIVE'"`
-	IsExercised bool                    `gorm:"not null;default:false"`
 	ExercisedAt *time.Time
 
 	CreatedAt time.Time

@@ -446,7 +446,6 @@ func TestOTC_ExerciseContract_Success_CompletesSaga(t *testing.T) {
 	var contract model.OtcOptionContract
 	require.NoError(t, db.First(&contract, contractID).Error)
 	assert.Equal(t, model.OtcOptionContractStatusExercised, contract.Status)
-	assert.True(t, contract.IsExercised)
 	assert.NotNil(t, contract.ExercisedAt)
 
 	var reservation model.OtcShareReservation

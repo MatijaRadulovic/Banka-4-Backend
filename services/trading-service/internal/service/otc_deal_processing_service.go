@@ -199,7 +199,6 @@ func (s *OtcDealProcessingService) FinalizeAgreement(ctx context.Context, offerI
 			BuyerAccountNumber:  offer.BuyerAccountNumber,
 			SellerAccountNumber: *offer.SellerAccountNumber,
 			Status:              model.OtcOptionContractStatusActive,
-			IsExercised:         false,
 			CreatedAt:           now,
 			UpdatedAt:           now,
 		}
@@ -689,7 +688,6 @@ func (s *OtcDealProcessingService) transferOwnership(ctx context.Context, execut
 		}
 
 		contract.Status = model.OtcOptionContractStatusExercised
-		contract.IsExercised = true
 		contract.ExercisedAt = &now
 		contract.UpdatedAt = now
 		if err := s.optionContractRepo.Save(ctx, contract); err != nil {
@@ -804,7 +802,7 @@ func (s *OtcDealProcessingService) expireContract(ctx context.Context, contractI
 // eligible for exercise, expiring it on the spot if its settlement time has
 // already passed.
 func (s *OtcDealProcessingService) validateContractForExecution(ctx context.Context, contract *model.OtcOptionContract) error {
-	if contract.Status == model.OtcOptionContractStatusExercised || contract.IsExercised {
+	if contract.Status == model.OtcOptionContractStatusExercised {
 		return appErrors.ConflictErr("OTC contract has already been exercised")
 	}
 
