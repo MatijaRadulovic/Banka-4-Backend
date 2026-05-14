@@ -347,9 +347,23 @@ func (s *OtcOfferService) GetActiveOffersForUser(ctx context.Context, userID uin
 		if md, ok := dataMap[resp[i].StockAssetID]; ok {
 			resp[i].CurrentPrice = &md.price
 			resp[i].ListingCurrency = md.currency
+
+			// Convert to RSD if not already in RSD
+			if md.currency != "RSD" {
+				priceRSD, err := s.bankingClient.ConvertCurrency(ctx, md.price, md.currency, "RSD")
+				if err != nil {
+					resp[i].CurrentPriceRSD = nil
+				} else {
+					resp[i].CurrentPriceRSD = &priceRSD
+				}
+			} else {
+				// Already in RSD, reuse the same value
+				resp[i].CurrentPriceRSD = &md.price
+			}
 		} else {
 			resp[i].CurrentPrice = nil
 			resp[i].ListingCurrency = ""
+			resp[i].CurrentPriceRSD = nil
 		}
 	}
 

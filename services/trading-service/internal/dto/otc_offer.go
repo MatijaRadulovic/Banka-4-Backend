@@ -54,6 +54,8 @@ type OtcOfferResponse struct {
 	CurrentPrice    *float64 `json:"current_price,omitempty"`
 	ListingCurrency string   `json:"listing_currency,omitempty"`
 
+	CurrentPriceRSD *float64 `json:"current_price_rsd,omitempty"`
+
 	PremiumRSD          float64              `json:"premium_rsd"`
 	SettlementDate      time.Time            `json:"settlement_date"`
 	BuyerAccountNumber  string               `json:"buyer_account_number"`
