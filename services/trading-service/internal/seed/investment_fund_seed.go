@@ -34,51 +34,50 @@ func InvestmentFunds(db *gorm.DB) error {
 		if err := db.FirstOrCreate(&funds[i], model.InvestmentFund{Name: funds[i].Name}).Error; err != nil {
 			return err
 		}
+		investment := &model.ClientFundInvestment{
+			ClientID:      funds[i].ManagerID,
+			OwnerType:     model.OwnerTypeActuary,
+			FundID:        funds[i].FundID,
+			AccountNumber: funds[i].AccountNumber,
+			Amount:        1500000,
+			CurrencyCode:  "RSD",
+			CreatedAt:     now,
+		}
+		if err := db.FirstOrCreate(
+			investment,
+			model.ClientFundInvestment{
+				ClientID:  funds[i].ManagerID,
+				OwnerType: model.OwnerTypeActuary,
+				FundID:    funds[i].FundID,
+			},
+		).Error; err != nil {
+			return err
+		}
+
+		position := &model.ClientFundPosition{
+			ClientID:            funds[i].ManagerID,
+			OwnerType:           model.OwnerTypeActuary,
+			FundID:              funds[i].FundID,
+			TotalInvestedAmount: 1500000,
+			UpdatedAt:           now,
+		}
+
+		if err := db.FirstOrCreate(
+			position,
+			model.ClientFundPosition{
+				ClientID:  funds[i].ManagerID,
+				OwnerType: model.OwnerTypeActuary,
+				FundID:    funds[i].FundID,
+			},
+		).Error; err != nil {
+			return err
+		}
 	}
 
 	// --- ASSUME first fund exists ---
 	var fund model.InvestmentFund
 	if err := db.First(&fund, "name = ?", "Alpha Growth Fund").Error; err != nil {
 		return err
-	}
-
-	// -------------------------------
-	// 1. Seed Asset Ownership (FUND owns assets)
-	// -------------------------------
-	assets := []model.AssetOwnership{
-		{
-			UserId:         fund.FundID, // fund acts as "user"
-			OwnerType:      model.OwnerTypeFund,
-			AssetID:        1,
-			Amount:         100,
-			AvgBuyPriceRSD: 1200,
-			PublicAmount:   0,
-			ReservedAmount: 0,
-			UpdatedAt:      now,
-		},
-		{
-			UserId:         fund.FundID,
-			OwnerType:      model.OwnerTypeFund,
-			AssetID:        2,
-			Amount:         50,
-			AvgBuyPriceRSD: 2500,
-			PublicAmount:   0,
-			ReservedAmount: 0,
-			UpdatedAt:      now,
-		},
-	}
-
-	for _, ao := range assets {
-		if err := db.FirstOrCreate(
-			&ao,
-			model.AssetOwnership{
-				UserId:    ao.UserId,
-				OwnerType: ao.OwnerType,
-				AssetID:   ao.AssetID,
-			},
-		).Error; err != nil {
-			return err
-		}
 	}
 
 	// -------------------------------

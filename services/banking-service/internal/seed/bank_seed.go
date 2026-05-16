@@ -349,7 +349,7 @@ var accounts = []struct {
 		ClientID:      1,
 		CompanyID:     getUintPointer(1),
 		EmployeeID:    3,
-		Balance:       3000000.00,
+		Balance:       1500000.00,
 		ExpiresAt:     time.Date(2099, 1, 1, 0, 0, 0, 0, time.UTC),
 		CurrencyCode:  model.RSD,
 		AccountType:   model.AccountTypeFund,

@@ -887,9 +887,6 @@ func (s *InvestmentFundService) GetFundDetail(ctx context.Context, fundID uint) 
 		}
 		listingCurrency := exchange.Currency
 
-		marketValue := h.Amount * currentPrice
-		fundValue += marketValue
-
 		change := 0.0
 		volume := uint64(0)
 		if dailyInfo != nil {
