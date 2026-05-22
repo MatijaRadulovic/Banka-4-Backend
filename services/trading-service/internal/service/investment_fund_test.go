@@ -1859,3 +1859,112 @@ func TestValidateFundAccount_EmployeeBankAccountSuccess(t *testing.T) {
 	require.NotNil(t, account)
 	require.Equal(t, "BANK-ACC", account.GetAccountNumber())
 }
+
+func TestGetClientFundPositions_UsesUnitsForShareAndProfit(t *testing.T) {
+	fund := model.InvestmentFund{
+		FundID:        1,
+		Name:          "Growth Fund",
+		Description:   "Growth strategy",
+		AccountNumber: "fund-account",
+	}
+
+	positionRepo := &fakePositionRepo{
+		findByClientRes: []model.ClientFundPosition{
+			{
+				ClientID:            1,
+				OwnerType:           model.OwnerTypeClient,
+				FundID:              fund.FundID,
+				Fund:                &fund,
+				UnitsOwned:          1000,
+				TotalInvestedAmount: 1000,
+			},
+		},
+		findByFundRes: []model.ClientFundPosition{
+			{ClientID: 1, OwnerType: model.OwnerTypeClient, FundID: fund.FundID, UnitsOwned: 1000, TotalInvestedAmount: 1000},
+			{ClientID: 2, OwnerType: model.OwnerTypeClient, FundID: fund.FundID, UnitsOwned: 1000, TotalInvestedAmount: 1000},
+			{ClientID: 3, OwnerType: model.OwnerTypeClient, FundID: fund.FundID, UnitsOwned: 500, TotalInvestedAmount: 1000},
+		},
+	}
+
+	bankingClient := &fakeFundBankingClient{
+		accountsByNumber: map[string]*pb.GetAccountByNumberResponse{
+			"fund-account": {AccountNumber: "fund-account", AvailableBalance: 4000, CurrencyCode: "RSD"},
+		},
+	}
+
+	exchange := defaultExchange()
+	svc := NewInvestmentFundService(
+		&fakeFundRepo{findByIDResult: &fund},
+		positionRepo,
+		&fakeListingRepo{},
+		&fakeInvestmentRepo{},
+		&fakeRedemptionRepo{},
+		&fakeAssetOwnershipRepo{},
+		&fakeExchangeRepo{exchange: exchange},
+		&fakeStockRepo{},
+		&fakeOptionRepo{},
+		&fakeFuturesRepo{},
+		&fakeForexRepo{},
+		bankingClient,
+		&fakeFundUserClient{},
+		nil,
+	)
+
+	resp, err := svc.GetClientFundPositions(context.Background(), 1)
+	require.NoError(t, err)
+	require.Len(t, resp, 1)
+	require.InDelta(t, 40.0, resp[0].ClientsSharePercent, 0.0001)
+	require.InDelta(t, 1600.0, resp[0].ClientsShareValueRSD, 0.0001)
+	require.InDelta(t, 600.0, resp[0].TotalProfit, 0.0001)
+}
+
+func TestInvestInFund_UsesNAVToCalculateUnits(t *testing.T) {
+	fund := &model.InvestmentFund{
+		FundID:              1,
+		Name:                "Growth Fund",
+		MinimumContribution: 10,
+		AccountNumber:       "fund-account",
+	}
+
+	positionRepo := &fakePositionRepo{
+		findByFundRes: []model.ClientFundPosition{
+			{ClientID: 1, OwnerType: model.OwnerTypeClient, FundID: 1, UnitsOwned: 1000, TotalInvestedAmount: 1000},
+			{ClientID: 2, OwnerType: model.OwnerTypeClient, FundID: 1, UnitsOwned: 1000, TotalInvestedAmount: 1000},
+		},
+	}
+
+	bankingClient := &fakeFundBankingClient{
+		accountsByNumber: map[string]*pb.GetAccountByNumberResponse{
+			"client-account": {AccountNumber: "client-account", ClientId: 99, AccountType: "Current", CurrencyCode: "RSD"},
+			"fund-account":   {AccountNumber: "fund-account", AccountType: "Fund", CurrencyCode: "RSD", AvailableBalance: 4000},
+		},
+	}
+
+	exchange := defaultExchange()
+	svc := NewInvestmentFundService(
+		&fakeFundRepo{findByIDResult: fund},
+		positionRepo,
+		&fakeListingRepo{},
+		&fakeInvestmentRepo{},
+		&fakeRedemptionRepo{},
+		&fakeAssetOwnershipRepo{},
+		&fakeExchangeRepo{exchange: exchange},
+		&fakeStockRepo{},
+		&fakeOptionRepo{},
+		&fakeFuturesRepo{},
+		&fakeForexRepo{},
+		bankingClient,
+		&fakeFundUserClient{},
+		nil,
+	)
+
+	resp, err := svc.InvestInFund(fundClientCtx(), 1, dto.InvestInFundRequest{
+		AccountNumber: "client-account",
+		Amount:        1000,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, positionRepo.upserted)
+	require.InDelta(t, 500.0, positionRepo.upserted.UnitsOwned, 0.0001)
+	require.InDelta(t, 1000.0, positionRepo.upserted.TotalInvestedAmount, 0.0001)
+	require.Equal(t, 1000.0, resp.TotalInvestedRSD)
+}

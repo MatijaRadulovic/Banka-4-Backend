@@ -58,6 +58,7 @@ func InvestmentFunds(db *gorm.DB) error {
 			ClientID:            funds[i].ManagerID,
 			OwnerType:           model.OwnerTypeActuary,
 			FundID:              funds[i].FundID,
+			UnitsOwned:          1500000,
 			TotalInvestedAmount: 1500000,
 			UpdatedAt:           now,
 		}
