@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/RAF-SI-2025/Banka-4-Backend/common/pkg/audit"
+	commonauth "github.com/RAF-SI-2025/Banka-4-Backend/common/pkg/auth"
 	"github.com/RAF-SI-2025/Banka-4-Backend/common/pkg/errors"
 	"github.com/RAF-SI-2025/Banka-4-Backend/common/pkg/pb"
 	"github.com/RAF-SI-2025/Banka-4-Backend/services/trading-service/internal/client"
@@ -18,17 +20,20 @@ type TaxService struct {
 	taxRepo          repository.TaxRepository
 	bankingClient    client.BankingClient
 	taxAccountNumber string
+	auditRepo        audit.Repository
 }
 
 func NewTaxService(
 	taxRepo repository.TaxRepository,
 	bankingClient client.BankingClient,
 	cfg *config.Configuration,
+	auditRepo audit.Repository,
 ) *TaxService {
 	return &TaxService{
 		taxRepo:          taxRepo,
 		bankingClient:    bankingClient,
 		taxAccountNumber: cfg.TaxAccountNumber,
+		auditRepo:        auditRepo,
 	}
 }
 
@@ -81,6 +86,15 @@ func (s *TaxService) CollectTaxes(ctx context.Context) error {
 
 		err = s.taxRepo.RecordCollectionResult(ctx, collection, collectionErr == nil, amountToCollect, now)
 		if err != nil {
+			return errors.InternalErr(err)
+		}
+	}
+
+	if authCtx := commonauth.GetAuthFromContext(ctx); authCtx != nil && authCtx.EmployeeID != nil {
+		if err := s.auditRepo.Save(ctx, &audit.AuditLog{
+			ActionType:    audit.ActionTaxCollectionTriggered,
+			PerformedByID: *authCtx.EmployeeID,
+		}); err != nil {
 			return errors.InternalErr(err)
 		}
 	}

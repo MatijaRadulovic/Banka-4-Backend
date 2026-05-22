@@ -1382,6 +1382,7 @@ func newTestFundServiceWithOrderService(
 		userClient,
 		orderBankingClient,
 		&fakeTaxRecorder{},
+		&fakeAuditRepo{},
 	)
 	return NewInvestmentFundService(
 		&fakeFundRepo{},
