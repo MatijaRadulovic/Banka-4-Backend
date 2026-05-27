@@ -2741,6 +2741,317 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/api/watchlists": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Lists every watchlist owned by the authenticated user (client or actuary), with item counts.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "watchlists"
+                ],
+                "summary": "List watchlists",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.WatchlistResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/errors.AppError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/errors.AppError"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates a new, empty watchlist for the authenticated user. Names are unique per user.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "watchlists"
+                ],
+                "summary": "Create a watchlist",
+                "parameters": [
+                    {
+                        "description": "Watchlist name",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateWatchlistRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dto.WatchlistResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/errors.AppError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/errors.AppError"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/errors.AppError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/watchlists/{watchlistId}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a single watchlist with all of its tracked listings, each enriched with current price, daily change and volume. Optionally filtered by asset type.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "watchlists"
+                ],
+                "summary": "Get watchlist details",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Watchlist ID",
+                        "name": "watchlistId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by asset type: stock|option|future|forexPair",
+                        "name": "asset_type",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.WatchlistDetailResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/errors.AppError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/errors.AppError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/errors.AppError"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Deletes one of the authenticated user's watchlists and all of its items.",
+                "tags": [
+                    "watchlists"
+                ],
+                "summary": "Delete a watchlist",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Watchlist ID",
+                        "name": "watchlistId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/errors.AppError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/errors.AppError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/watchlists/{watchlistId}/items": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Adds a listing (stock, option, future or forex pair) to one of the authenticated user's watchlists.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "watchlists"
+                ],
+                "summary": "Add a listing to a watchlist",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Watchlist ID",
+                        "name": "watchlistId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Listing to add",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.AddWatchlistItemRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/errors.AppError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/errors.AppError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/errors.AppError"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/errors.AppError"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/watchlists/{watchlistId}/items/{listingId}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Removes a listing from one of the authenticated user's watchlists.",
+                "tags": [
+                    "watchlists"
+                ],
+                "summary": "Remove a listing from a watchlist",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Watchlist ID",
+                        "name": "watchlistId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Listing ID",
+                        "name": "listingId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/errors.AppError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/errors.AppError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/errors.AppError"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -2786,6 +3097,17 @@ const docTemplate = `{
                 },
                 "profit_rsd": {
                     "type": "number"
+                }
+            }
+        },
+        "dto.AddWatchlistItemRequest": {
+            "type": "object",
+            "required": [
+                "listing_id"
+            ],
+            "properties": {
+                "listing_id": {
+                    "type": "integer"
                 }
             }
         },
@@ -3026,6 +3348,19 @@ const docTemplate = `{
                 },
                 "settlement_date": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.CreateWatchlistRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1
                 }
             }
         },
@@ -4336,6 +4671,87 @@ const docTemplate = `{
                 },
                 "userType": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.WatchlistDetailResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "listings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.WatchlistListingResponse"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "watchlist_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.WatchlistListingResponse": {
+            "type": "object",
+            "properties": {
+                "added_at": {
+                    "type": "string"
+                },
+                "ask": {
+                    "type": "number"
+                },
+                "asset_type": {
+                    "type": "string"
+                },
+                "bid": {
+                    "type": "number"
+                },
+                "change": {
+                    "type": "number"
+                },
+                "exchange": {
+                    "type": "string"
+                },
+                "initial_margin_cost": {
+                    "type": "number"
+                },
+                "listing_id": {
+                    "type": "integer"
+                },
+                "maintenance_margin": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "ticker": {
+                    "type": "string"
+                },
+                "volume": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.WatchlistResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "item_count": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "watchlist_id": {
+                    "type": "integer"
                 }
             }
         },

@@ -31,10 +31,10 @@ func NewWatchlistService(
 }
 
 // ownerIdentity resolves the (userID, ownerType) pair for the authenticated
-// caller. Clients are identified by their ClientID, actuaries (employees) by
-// their EmployeeID — mirroring auth.GetSubjectFromContext while also exposing
-// the owner type so watchlists are never shared across the client/actuary
-// namespaces.
+// caller. Clients are identified by their ClientID; any employee (actuary,
+// supervisor, ...) by their EmployeeID. The OwnerType discriminator only keeps
+// the two ID namespaces from colliding — it is not a role check (authorization
+// to reach these endpoints is enforced by the Trading permission upstream).
 func ownerIdentity(ctx context.Context) (uint, model.OwnerType, error) {
 	authCtx := auth.GetAuthFromContext(ctx)
 	if authCtx == nil {

@@ -110,15 +110,14 @@ func SetupRoutes(r *gin.Engine, healthHandler *handler.HealthHandler, taxHandler
 			}
 		}
 
-		// Watchlists
+		// Watchlists — personalne liste praćenih hartija. Dostupne svim korisnicima
+		// sa Trading permisijom (klijent, aktuar, supervizor). Svaki korisnik vidi i
+		// menja samo svoje liste — vlasništvo se određuje preko (UserID, OwnerType)
+		// iz tokena.
 		watchlists := api.Group("/watchlists")
 		watchlists.Use(
 			authMw,
 			auth.RequirePermission(permission.Trading),
-			auth.AnyOf(
-				middleware.RequireAgent(userClient),
-				auth.RequireIdentityType(auth.IdentityClient),
-			),
 		)
 		{
 			watchlists.GET("", watchlistHandler.GetWatchlists)
