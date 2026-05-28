@@ -14,11 +14,13 @@ import (
 	"github.com/RAF-SI-2025/Banka-4-Backend/common/pkg/db"
 	"github.com/RAF-SI-2025/Banka-4-Backend/common/pkg/jwt"
 	"github.com/RAF-SI-2025/Banka-4-Backend/common/pkg/logging"
+	"github.com/RAF-SI-2025/Banka-4-Backend/common/pkg/pb"
 	"github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/client"
 	clientgrpc "github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/client/grpc"
 	"github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/config"
 	"github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/handler"
 	"github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/model"
+	"github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/permission"
 	"github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/repository"
 	"github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/server"
 	"github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/service"
@@ -38,12 +40,20 @@ func main() {
 			func(cfg *config.Configuration) auth.TokenVerifier {
 				return jwt.NewJWTVerifier(cfg.JWTSecret)
 			},
-			service.NewNoopPermissionProvider,
 
 			client.NewUserServiceConnection,
 			client.NewTradingServiceConnection,
 			clientgrpc.NewUserClient,
 			clientgrpc.NewTradingClient,
+
+			// PermissionService is exposed by user-service, so it shares
+			// the user-service gRPC connection.
+			func(conn *client.UserServiceConn) pb.PermissionServiceClient {
+				return pb.NewPermissionServiceClient(conn.ClientConn)
+			},
+			func(c pb.PermissionServiceClient) auth.PermissionProvider {
+				return permission.NewGrpcPermissionProvider(c)
+			},
 
 			service.NewPeerResolver,
 
