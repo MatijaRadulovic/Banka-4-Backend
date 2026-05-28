@@ -89,13 +89,13 @@ func Load() *Configuration {
 	_ = godotenv.Load()
 
 	return &Configuration{
-		Env:               getOrDefault("ENV", "development"),
-		Port:              getOrDefault("PORT", "8083"),
-		OurRoutingNumber:  getIntOrDefault("INTERBANK_ROUTING_NUMBER", 444),
-		PeersConfigPath:   getOrDefault("INTERBANK_PEERS_CONFIG_PATH", "./peers.yaml"),
-		OutboundHTTPTO:    getDurationOrDefault("INTERBANK_OUTBOUND_HTTP_TIMEOUT", 10*time.Second),
-		OutboxPollEvery:   getDurationOrDefault("INTERBANK_OUTBOX_POLL_INTERVAL", 2*time.Second),
-		OutboxMaxAttempts: getIntOrDefault("INTERBANK_OUTBOX_MAX_ATTEMPTS", 20),
+		Env:                getOrDefault("ENV", "development"),
+		Port:               getOrDefault("PORT", "8083"),
+		OurRoutingNumber:   getIntOrDefault("INTERBANK_ROUTING_NUMBER", 444),
+		PeersConfigPath:    getOrDefault("INTERBANK_PEERS_CONFIG_PATH", "./peers.yaml"),
+		OutboundHTTPTO:     getDurationOrDefault("INTERBANK_OUTBOUND_HTTP_TIMEOUT", 10*time.Second),
+		OutboxPollEvery:    getDurationOrDefault("INTERBANK_OUTBOX_POLL_INTERVAL", 2*time.Second),
+		OutboxMaxAttempts:  getIntOrDefault("INTERBANK_OUTBOX_MAX_ATTEMPTS", 20),
 		JWTSecret:          getOrThrow("JWT_SECRET"),
 		UserServiceAddr:    getOrDefault("USER_SERVICE_ADDR", "localhost:50051"),
 		TradingServiceAddr: getOrDefault("TRADING_SERVICE_ADDR", "localhost:50053"),
