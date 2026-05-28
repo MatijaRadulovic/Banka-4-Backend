@@ -14,6 +14,8 @@ import (
 	"github.com/RAF-SI-2025/Banka-4-Backend/common/pkg/db"
 	"github.com/RAF-SI-2025/Banka-4-Backend/common/pkg/jwt"
 	"github.com/RAF-SI-2025/Banka-4-Backend/common/pkg/logging"
+	"github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/client"
+	clientgrpc "github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/client/grpc"
 	"github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/config"
 	"github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/handler"
 	"github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/model"
@@ -37,6 +39,11 @@ func main() {
 				return jwt.NewJWTVerifier(cfg.JWTSecret)
 			},
 			service.NewNoopPermissionProvider,
+
+			client.NewUserServiceConnection,
+			client.NewTradingServiceConnection,
+			clientgrpc.NewUserClient,
+			clientgrpc.NewTradingClient,
 
 			service.NewPeerResolver,
 

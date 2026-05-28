@@ -29,16 +29,19 @@ type URLConfig struct {
 }
 
 type Configuration struct {
-	Env               string
-	Port              string
-	DB                DBConfig
-	URLs              URLConfig
-	OurRoutingNumber  int
-	PeersConfigPath   string
-	OutboundHTTPTO    time.Duration
-	OutboxPollEvery   time.Duration
-	OutboxMaxAttempts int
-	JWTSecret         string
+	Env                string
+	Port               string
+	DB                 DBConfig
+	URLs               URLConfig
+	OurRoutingNumber   int
+	PeersConfigPath    string
+	OutboundHTTPTO     time.Duration
+	OutboxPollEvery    time.Duration
+	OutboxMaxAttempts  int
+	JWTSecret          string
+	UserServiceAddr    string
+	TradingServiceAddr string
+	OurBankDisplayName string
 }
 
 func getOrDefault(env string, def string) string {
@@ -93,7 +96,10 @@ func Load() *Configuration {
 		OutboundHTTPTO:    getDurationOrDefault("INTERBANK_OUTBOUND_HTTP_TIMEOUT", 10*time.Second),
 		OutboxPollEvery:   getDurationOrDefault("INTERBANK_OUTBOX_POLL_INTERVAL", 2*time.Second),
 		OutboxMaxAttempts: getIntOrDefault("INTERBANK_OUTBOX_MAX_ATTEMPTS", 20),
-		JWTSecret:         getOrThrow("JWT_SECRET"),
+		JWTSecret:          getOrThrow("JWT_SECRET"),
+		UserServiceAddr:    getOrDefault("USER_SERVICE_ADDR", "localhost:50051"),
+		TradingServiceAddr: getOrDefault("TRADING_SERVICE_ADDR", "localhost:50053"),
+		OurBankDisplayName: getOrDefault("INTERBANK_BANK_DISPLAY_NAME", "Banka 4"),
 		DB: DBConfig{
 			Host:     getOrThrow("DB_HOST"),
 			Port:     getOrThrow("DB_PORT"),

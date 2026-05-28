@@ -593,22 +593,107 @@
         },
         "/interbank/public-stock": {
             "get": {
-                "description": "§3.1 — STUB. Will be wired to trading-service for the list\nof stock holdings marked public for OTC by users in this bank.",
+                "description": "§3.1 — returns every stock holding at this bank that has\na non-zero public amount, grouped by ticker with the list\nof sellers and their available quantities. Data pulled\nfrom trading-service via gRPC.",
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "interbank-otc"
                 ],
-                "summary": "List public stocks",
-                "responses": {}
+                "summary": "List public stocks at this bank",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Peer bank API key",
+                        "name": "X-Api-Key",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.PublicStock"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/errors.AppError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/errors.AppError"
+                        }
+                    }
+                }
             }
         },
         "/interbank/user/{rn}/{id}": {
             "get": {
-                "description": "§3.7 — STUB. Will be wired to user-service.",
+                "description": "§3.7 — peer banks call us to resolve one of our users into\na display name. routingNumber must match ours; id is the\nlocal user id encoded as a decimal string.",
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "interbank-otc"
                 ],
                 "summary": "Resolve user display name",
-                "responses": {}
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Peer bank API key",
+                        "name": "X-Api-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Routing number (this bank)",
+                        "name": "rn",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "User id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.UserInformation"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/errors.AppError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/errors.AppError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/errors.AppError"
+                        }
+                    }
+                }
             }
         }
     },
@@ -930,6 +1015,17 @@
                 "TxAccountAccount",
                 "TxAccountOption"
             ]
+        },
+        "dto.UserInformation": {
+            "type": "object",
+            "properties": {
+                "bankDisplayName": {
+                    "type": "string"
+                },
+                "displayName": {
+                    "type": "string"
+                }
+            }
         },
         "dto.VoteKind": {
             "type": "string",

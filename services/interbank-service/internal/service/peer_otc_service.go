@@ -7,8 +7,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/RAF-SI-2025/Banka-4-Backend/common/pkg/errors"
+	"github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/client"
 	"github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/dto"
 	"github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/model"
 	"github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/repository"
@@ -21,17 +24,27 @@ import (
 // the id and store the row. When our buyer initiates against a peer
 // seller, we hold a mirror row and the peer is authoritative.
 type PeerOtcService struct {
-	negotiations repository.PeerNegotiationRepository
-	peers        *PeerResolver
-	client       *PeerOtcClient
+	negotiations  repository.PeerNegotiationRepository
+	peers         *PeerResolver
+	client        *PeerOtcClient
+	tradingClient client.TradingClient
+	userClient    client.UserClient
 }
 
 func NewPeerOtcService(
 	negotiations repository.PeerNegotiationRepository,
 	peers *PeerResolver,
-	client *PeerOtcClient,
+	peerClient *PeerOtcClient,
+	tradingClient client.TradingClient,
+	userClient client.UserClient,
 ) *PeerOtcService {
-	return &PeerOtcService{negotiations: negotiations, peers: peers, client: client}
+	return &PeerOtcService{
+		negotiations:  negotiations,
+		peers:         peers,
+		client:        peerClient,
+		tradingClient: tradingClient,
+		userClient:    userClient,
+	}
 }
 
 // CreateFromPeer handles §3.2 POST /interbank/negotiations — a peer bank's
@@ -458,6 +471,66 @@ func (s *PeerOtcService) WithdrawAsLocal(
 	}
 
 	return nil
+}
+
+// ListLocalPublicStocks serves §3.1 GET /interbank/public-stock — peer
+// banks call us asking for our users' publicly-listed stocks. We pull
+// from trading-service via gRPC and map to the §3.1 wire shape; every
+// owner is stamped with our routing number.
+func (s *PeerOtcService) ListLocalPublicStocks(ctx context.Context) ([]dto.PublicStock, error) {
+	resp, err := s.tradingClient.ListPublicStocks(ctx)
+	if err != nil {
+		return nil, errors.InternalErr(err)
+	}
+
+	ours := s.peers.OurRoutingNumber()
+	out := make([]dto.PublicStock, 0, len(resp.GetStocks()))
+	for _, entry := range resp.GetStocks() {
+		sellers := make([]dto.PublicStockSeller, 0, len(entry.GetSellers()))
+		for _, seller := range entry.GetSellers() {
+			sellers = append(sellers, dto.PublicStockSeller{
+				Seller: dto.ForeignBankId{
+					RoutingNumber: ours,
+					ID:            strconv.FormatUint(seller.GetSellerId(), 10),
+				},
+				Amount: int(seller.GetAmount()),
+			})
+		}
+		out = append(out, dto.PublicStock{
+			Stock:   dto.StockDescription{Ticker: entry.GetTicker()},
+			Sellers: sellers,
+		})
+	}
+
+	return out, nil
+}
+
+// LookupLocalUser serves §3.7 GET /interbank/user/:rn/:id — peer banks
+// resolve a foreign user id we own into a display name. routingNumber
+// must match ours; id is the local uint user id encoded as decimal.
+// Returns 404 when the user is not found.
+func (s *PeerOtcService) LookupLocalUser(ctx context.Context, routingNumber int, id string) (*dto.UserInformation, error) {
+	if routingNumber != s.peers.OurRoutingNumber() {
+		return nil, errors.BadRequestErr("routingNumber does not match this bank")
+	}
+
+	userID, err := strconv.ParseUint(id, 10, 64)
+	if err != nil {
+		return nil, errors.BadRequestErr("user id must be a positive integer")
+	}
+
+	resp, err := s.userClient.GetClientByID(ctx, userID)
+	if err != nil {
+		if grpcStatus, ok := status.FromError(err); ok && grpcStatus.Code() == codes.NotFound {
+			return nil, errors.NotFoundErr("user not found")
+		}
+		return nil, errors.InternalErr(err)
+	}
+
+	return &dto.UserInformation{
+		BankDisplayName: s.peers.OurBankDisplayName(),
+		DisplayName:     resp.GetFullName(),
+	}, nil
 }
 
 // findLocalMirrorByRemote loads our mirror row for an authoritative

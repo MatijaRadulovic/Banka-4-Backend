@@ -198,22 +198,60 @@ func (h *PeerOtcHandler) AcceptNegotiation(c *gin.Context) {
 }
 
 // PublicStock godoc
-// @Summary List public stocks
-// @Description §3.1 — STUB. Will be wired to trading-service for the list
-// @Description of stock holdings marked public for OTC by users in this bank.
+// @Summary List public stocks at this bank
+// @Description §3.1 — returns every stock holding at this bank that has
+// @Description a non-zero public amount, grouped by ticker with the list
+// @Description of sellers and their available quantities. Data pulled
+// @Description from trading-service via gRPC.
 // @Tags interbank-otc
+// @Produce json
+// @Param X-Api-Key header string true "Peer bank API key"
+// @Success 200 {array} dto.PublicStock
+// @Failure 401 {object} errors.AppError
+// @Failure 500 {object} errors.AppError
 // @Router /interbank/public-stock [get]
 func (h *PeerOtcHandler) PublicStock(c *gin.Context) {
-	_ = c.Error(errors.NewAppError(http.StatusNotImplemented, "public-stock not implemented yet", nil))
+	stocks, err := h.service.ListLocalPublicStocks(c.Request.Context())
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	c.JSON(http.StatusOK, stocks)
 }
 
 // UserLookup godoc
 // @Summary Resolve user display name
-// @Description §3.7 — STUB. Will be wired to user-service.
+// @Description §3.7 — peer banks call us to resolve one of our users into
+// @Description a display name. routingNumber must match ours; id is the
+// @Description local user id encoded as a decimal string.
 // @Tags interbank-otc
+// @Produce json
+// @Param X-Api-Key header string true "Peer bank API key"
+// @Param rn path int true "Routing number (this bank)"
+// @Param id path string true "User id"
+// @Success 200 {object} dto.UserInformation
+// @Failure 400 {object} errors.AppError
+// @Failure 401 {object} errors.AppError
+// @Failure 404 {object} errors.AppError
 // @Router /interbank/user/{rn}/{id} [get]
 func (h *PeerOtcHandler) UserLookup(c *gin.Context) {
-	_ = c.Error(errors.NewAppError(http.StatusNotImplemented, "user-lookup not implemented yet", nil))
+	rn, ok := parseRoutingNumber(c)
+	if !ok {
+		return
+	}
+
+	id := c.Param("id")
+	if id == "" {
+		_ = c.Error(errors.BadRequestErr("id is required"))
+		return
+	}
+
+	info, err := h.service.LookupLocalUser(c.Request.Context(), rn, id)
+	if err != nil {
+		_ = c.Error(err)
+		return
+	}
+	c.JSON(http.StatusOK, info)
 }
 
 // senderRoutingFromContext pulls the routing number set by APIKeyAuth.

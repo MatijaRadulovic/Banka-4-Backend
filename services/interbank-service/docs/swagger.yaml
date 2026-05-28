@@ -220,6 +220,13 @@ definitions:
     - TxAccountPerson
     - TxAccountAccount
     - TxAccountOption
+  dto.UserInformation:
+    properties:
+      bankDisplayName:
+        type: string
+      displayName:
+        type: string
+    type: object
   dto.VoteKind:
     enum:
     - "YES"
@@ -715,16 +722,77 @@ paths:
   /interbank/public-stock:
     get:
       description: |-
-        §3.1 — STUB. Will be wired to trading-service for the list
-        of stock holdings marked public for OTC by users in this bank.
-      responses: {}
-      summary: List public stocks
+        §3.1 — returns every stock holding at this bank that has
+        a non-zero public amount, grouped by ticker with the list
+        of sellers and their available quantities. Data pulled
+        from trading-service via gRPC.
+      parameters:
+      - description: Peer bank API key
+        in: header
+        name: X-Api-Key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.PublicStock'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errors.AppError'
+      summary: List public stocks at this bank
       tags:
       - interbank-otc
   /interbank/user/{rn}/{id}:
     get:
-      description: §3.7 — STUB. Will be wired to user-service.
-      responses: {}
+      description: |-
+        §3.7 — peer banks call us to resolve one of our users into
+        a display name. routingNumber must match ours; id is the
+        local user id encoded as a decimal string.
+      parameters:
+      - description: Peer bank API key
+        in: header
+        name: X-Api-Key
+        required: true
+        type: string
+      - description: Routing number (this bank)
+        in: path
+        name: rn
+        required: true
+        type: integer
+      - description: User id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.UserInformation'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/errors.AppError'
       summary: Resolve user display name
       tags:
       - interbank-otc
