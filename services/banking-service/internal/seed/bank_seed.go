@@ -176,7 +176,6 @@ var accounts = []struct {
 		DailyLimit:    250000.00,
 		MonthlyLimit:  1000000.00,
 	},
-
 	{
 		AccountNumber: "444000112345678921",
 		Name:          "Personal EUR Account",
@@ -317,9 +316,9 @@ var accounts = []struct {
 	},
 	{
 		AccountNumber: "444000000000000008",
-		Name:          "Republika Srbija Tax Account",
-		ClientID:      6,
-		CompanyID:     getUintPointer(5),
+		Name:          "Bank Tax Account",
+		ClientID:      1,                 // Promenjeno na 1 (Banka 4)
+		CompanyID:     getUintPointer(1), // Promenjeno na 1 (Banka 4 kompanija)
 		EmployeeID:    3,
 		Balance:       0,
 		ExpiresAt:     time.Date(2099, 1, 1, 0, 0, 0, 0, time.UTC),
@@ -328,6 +327,34 @@ var accounts = []struct {
 		AccountKind:   model.AccountKindInternal,
 		DailyLimit:    1e12,
 		MonthlyLimit:  1e13,
+	},
+	{
+		AccountNumber: "444000000000000009",
+		Name:          "Bank Dividend Account",
+		ClientID:      1,
+		CompanyID:     getUintPointer(1),
+		EmployeeID:    3,
+		Balance:       1_000_000_000.00,
+		ExpiresAt:     time.Date(2099, 1, 1, 0, 0, 0, 0, time.UTC),
+		CurrencyCode:  model.RSD,
+		AccountType:   model.AccountTypeBank,
+		AccountKind:   model.AccountKindInternal,
+		DailyLimit:    1e12,
+		MonthlyLimit:  1e13,
+	},
+	{
+		AccountNumber: "444000112345678920",
+		Name:          "Personal RSD Account",
+		ClientID:      2,
+		EmployeeID:    1,
+		Balance:       10000.00,
+		ExpiresAt:     time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC),
+		CurrencyCode:  "RSD",
+		AccountType:   model.AccountTypePersonal,
+		AccountKind:   model.AccountKindCurrent,
+		Subtype:       model.SubtypeStandard,
+		DailyLimit:    250000.00,
+		MonthlyLimit:  1000000.00,
 	},
 	{
 		AccountNumber: "444000000000000010",

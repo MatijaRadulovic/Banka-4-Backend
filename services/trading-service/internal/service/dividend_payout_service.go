@@ -127,7 +127,7 @@ func (s *DividendPayoutService) payOwner(
 			TaxAmount:        0,
 			NetAmount:        gross,
 			CurrencyCode:     currencyCode,
-			AccountNumber:    s.cfg.DividendAccountNumber, // bankini račun
+			AccountNumber:    s.cfg.DividendAccountNumber,
 			PaymentDate:      paymentDate,
 		}
 		if err := s.dividendRepo.Save(ctx, payout); err != nil {
