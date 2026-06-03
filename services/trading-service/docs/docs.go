@@ -5564,12 +5564,12 @@ const docTemplate = `{
             "type": "string",
             "enum": [
                 "CLIENT",
-                "ACTUARY",
+                "BANK",
                 "FUND"
             ],
             "x-enum-varnames": [
                 "OwnerTypeClient",
-                "OwnerTypeActuary",
+                "OwnerTypeBank",
                 "OwnerTypeFund"
             ]
         },
