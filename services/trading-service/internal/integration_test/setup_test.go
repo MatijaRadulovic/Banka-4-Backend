@@ -381,7 +381,7 @@ func setupTestRouterWithPermissions(t *testing.T, db *gorm.DB, perms []permissio
 	otcOfferHandler := handler.NewOtcOfferHandler(otcOfferSvc)
 	watchlistHandler := handler.NewWatchlistHandler(service.NewWatchlistService(repository.NewWatchlistRepository(db), listingRepo))
 	dividendRepo := repository.NewDividendPayoutRepository(db)
-	dividendSvc := service.NewDividendPayoutService(dividendRepo, assetOwnershipRepo, stockRepo, listingRepo, taxSvc, bankingClient, cfg)
+	dividendSvc := service.NewDividendPayoutService(dividendRepo, assetOwnershipRepo, stockRepo, listingRepo, taxSvc, bankingClient, cfg, fundRepo, positionRepo, orderSvc)
 	dividendHandler := handler.NewDividendHandler(dividendSvc)
 
 	recurringOrderRepo := repository.NewRecurringOrderRepository(db)
