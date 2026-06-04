@@ -5134,6 +5134,9 @@ const docTemplate = `{
                 "public_amount": {
                     "type": "number"
                 },
+                "reserved_amount": {
+                    "type": "number"
+                },
                 "ticker": {
                     "type": "string"
                 },
