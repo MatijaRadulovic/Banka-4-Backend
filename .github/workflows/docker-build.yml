@@ -75,7 +75,10 @@ jobs:
           version: 'v1.35.5'
 
       - name: Configure kubectl
-        run: echo "${{ secrets.KUBE_CONFIG }}" | base64 --decode > .kube/config
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
 
       - name: Deploy to Kubernetes
         run: kubectl rollout restart deployment ${{ matrix.service }}
