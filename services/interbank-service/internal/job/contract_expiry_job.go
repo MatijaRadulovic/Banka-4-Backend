@@ -10,6 +10,7 @@ import (
 	"github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/client"
 	"github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/model"
 	"github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/repository"
+	"github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/service"
 )
 
 // ContractExpiryJob marks ACTIVE contracts and ONGOING negotiations whose
@@ -59,23 +60,28 @@ func (j *ContractExpiryJob) loop() {
 }
 
 func (j *ContractExpiryJob) run(ctx context.Context) {
-	now := time.Now()
-
-	expired, err := j.contracts.FindActiveExpired(ctx, now)
+	// Settlement dates are free-form ISO-8601 strings, so we fetch the live
+	// (ACTIVE / ONGOING) rows and decide expiry in Go via SettlementPassed,
+	// which correctly handles both date-only and timezoned datetime values.
+	active, err := j.contracts.FindActive(ctx)
 	if err != nil {
-		zap.L().Error("contract_expiry: FindActiveExpired failed", zap.Error(err))
+		zap.L().Error("contract_expiry: FindActive failed", zap.Error(err))
 	} else {
-		for i := range expired {
-			j.expireContract(ctx, &expired[i])
+		for i := range active {
+			if service.SettlementPassed(active[i].SettlementDate) {
+				j.expireContract(ctx, &active[i])
+			}
 		}
 	}
 
-	expiredNegs, err := j.negotiations.FindOngoingExpired(ctx, now)
+	ongoing, err := j.negotiations.FindOngoing(ctx)
 	if err != nil {
-		zap.L().Error("contract_expiry: FindOngoingExpired failed", zap.Error(err))
+		zap.L().Error("contract_expiry: FindOngoing failed", zap.Error(err))
 	} else {
-		for i := range expiredNegs {
-			j.expireNegotiation(ctx, &expiredNegs[i])
+		for i := range ongoing {
+			if service.SettlementPassed(ongoing[i].SettlementDate) {
+				j.expireNegotiation(ctx, &ongoing[i])
+			}
 		}
 	}
 }

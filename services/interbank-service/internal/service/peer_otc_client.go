@@ -47,11 +47,13 @@ func (c *PeerOtcClient) CreateNegotiation(ctx context.Context, offer dto.OtcOffe
 	return &result, nil
 }
 
-// UpdateCounter calls §3.3 PUT /interbank/negotiations/{rn}/{id} on the
-// peer that owns the negotiation.
-func (c *PeerOtcClient) UpdateCounter(ctx context.Context, negotiationID dto.ForeignBankId, offer dto.OtcOffer) error {
+// UpdateCounter calls §3.3 PUT /interbank/negotiations/{rn}/{id}. The path
+// {rn} is always the negotiation's authoritative (seller's) routing number,
+// while targetRouting is the OPPOSING party's bank the notification is sent
+// to (the buyer's bank when the seller counters, or vice versa).
+func (c *PeerOtcClient) UpdateCounter(ctx context.Context, targetRouting int, negotiationID dto.ForeignBankId, offer dto.OtcOffer) error {
 	path := fmt.Sprintf("/interbank/negotiations/%d/%s", negotiationID.RoutingNumber, negotiationID.ID)
-	return c.do(ctx, negotiationID.RoutingNumber, http.MethodPut, path, offer, nil)
+	return c.do(ctx, targetRouting, http.MethodPut, path, offer, nil)
 }
 
 // GetNegotiation calls §3.4 GET /interbank/negotiations/{rn}/{id} on the
@@ -67,11 +69,12 @@ func (c *PeerOtcClient) GetNegotiation(ctx context.Context, negotiationID dto.Fo
 	return &result, nil
 }
 
-// Close calls §3.5 DELETE /interbank/negotiations/{rn}/{id} on the peer
-// that owns the negotiation.
-func (c *PeerOtcClient) Close(ctx context.Context, negotiationID dto.ForeignBankId) error {
+// Close calls §3.5 DELETE /interbank/negotiations/{rn}/{id}. As with
+// UpdateCounter, the path {rn} is the authoritative routing number while
+// targetRouting is the opposing party's bank the notification is sent to.
+func (c *PeerOtcClient) Close(ctx context.Context, targetRouting int, negotiationID dto.ForeignBankId) error {
 	path := fmt.Sprintf("/interbank/negotiations/%d/%s", negotiationID.RoutingNumber, negotiationID.ID)
-	return c.do(ctx, negotiationID.RoutingNumber, http.MethodDelete, path, nil, nil)
+	return c.do(ctx, targetRouting, http.MethodDelete, path, nil, nil)
 }
 
 // Accept calls §3.6 GET /interbank/negotiations/{rn}/{id}/accept on the
@@ -87,22 +90,6 @@ func (c *PeerOtcClient) Accept(ctx context.Context, negotiationID dto.ForeignBan
 	}
 
 	return &result, nil
-}
-
-// PublicStock calls §3.1 GET /interbank/public-stock on the given peer.
-func (c *PeerOtcClient) ReserveShares(ctx context.Context, contractID dto.ForeignBankId) error {
-	path := fmt.Sprintf("/interbank/contracts/%d/%s/reserve-shares", contractID.RoutingNumber, contractID.ID)
-	return c.do(ctx, contractID.RoutingNumber, http.MethodPost, path, nil, nil)
-}
-
-func (c *PeerOtcClient) ConsumeShares(ctx context.Context, contractID dto.ForeignBankId) error {
-	path := fmt.Sprintf("/interbank/contracts/%d/%s/consume-shares", contractID.RoutingNumber, contractID.ID)
-	return c.do(ctx, contractID.RoutingNumber, http.MethodPost, path, nil, nil)
-}
-
-func (c *PeerOtcClient) ReleaseShares(ctx context.Context, contractID dto.ForeignBankId) error {
-	path := fmt.Sprintf("/interbank/contracts/%d/%s/release-shares", contractID.RoutingNumber, contractID.ID)
-	return c.do(ctx, contractID.RoutingNumber, http.MethodPost, path, nil, nil)
 }
 
 func (c *PeerOtcClient) SendNewTx(ctx context.Context, peerRouting int, key string, tx dto.Transaction) (*dto.TransactionVote, error) {

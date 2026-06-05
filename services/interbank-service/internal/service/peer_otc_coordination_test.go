@@ -23,6 +23,7 @@ type mockBank struct {
 	mu          sync.Mutex
 	received    []string
 	apiKeysSeen []string
+	otcReqs     []string // "<METHOD> <path>" for §3 negotiation endpoints
 
 	newTxStatus int                 // status for NEW_TX (default 200)
 	newTxVote   dto.TransactionVote // body for NEW_TX
@@ -32,8 +33,36 @@ func newMockBank() *mockBank {
 	m := &mockBank{newTxStatus: http.StatusOK, newTxVote: dto.TransactionVote{Vote: dto.VoteYes}}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/interbank", m.handle)
+	mux.HandleFunc("/interbank/negotiations", m.handleOtc)
+	mux.HandleFunc("/interbank/negotiations/", m.handleOtc)
 	m.server = httptest.NewServer(mux)
 	return m
+}
+
+// handleOtc records §3 negotiation requests (POST/PUT/DELETE) and returns a
+// minimal valid response so the client treats the call as successful.
+func (m *mockBank) handleOtc(w http.ResponseWriter, r *http.Request) {
+	m.mu.Lock()
+	m.otcReqs = append(m.otcReqs, r.Method+" "+r.URL.Path)
+	m.apiKeysSeen = append(m.apiKeysSeen, r.Header.Get("X-Api-Key"))
+	m.mu.Unlock()
+
+	switch r.Method {
+	case http.MethodPost: // §3.2 create → returns a ForeignBankId
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(dto.ForeignBankId{RoutingNumber: 111, ID: "remote-neg"})
+	default: // §3.3 PUT, §3.5 DELETE
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func (m *mockBank) otcGot() []string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make([]string, len(m.otcReqs))
+	copy(out, m.otcReqs)
+	return out
 }
 
 func (m *mockBank) handle(w http.ResponseWriter, r *http.Request) {

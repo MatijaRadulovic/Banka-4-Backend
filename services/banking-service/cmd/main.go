@@ -68,6 +68,10 @@ func main() {
 
 			// Email gRPC client
 			client.NewEmailServiceConnection,
+				// Interbank gRPC client (outbound: hand foreign-bank payments off)
+				func(cfg *config.Configuration) (client.InterbankClient, error) {
+					return clientgrpc.NewInterbankServiceClient(cfg.InterbankServiceAddr)
+				},
 			fx.Annotate(
 				clientgrpc.NewEmailClient,
 				fx.As(new(service.Mailer)),

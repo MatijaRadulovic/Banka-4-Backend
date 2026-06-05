@@ -96,24 +96,17 @@ func (s *PeerOtcService) CreateFromPeer(ctx context.Context, senderRouting int, 
 	}
 
 	n := &model.PeerNegotiation{
-		ID:                    uuid.NewString(),
-		BuyerRoutingNumber:    offer.BuyerID.RoutingNumber,
-		BuyerID:               offer.BuyerID.ID,
-		SellerRoutingNumber:   offer.SellerID.RoutingNumber,
-		SellerID:              offer.SellerID.ID,
-		Ticker:                offer.Ticker,
-		Amount:                offer.Amount,
-		PricePerStock:         offer.PricePerStock,
-		PriceCurrency:         offer.PriceCurrency,
-		Premium:               offer.Premium,
-		PremiumCurrency:       offer.PremiumCurrency,
-		SettlementDate:        offer.SettlementDate,
-		BuyerAccountNumber:    offer.BuyerAccountNumber,
-		LastModifiedByRouting: offer.LastModifiedBy.RoutingNumber,
-		LastModifiedByID:      offer.LastModifiedBy.ID,
-		Status:                model.PeerNegotiationOngoing,
-		IsAuthoritative:       true,
+		ID:                  uuid.NewString(),
+		BuyerRoutingNumber:  offer.BuyerID.RoutingNumber,
+		BuyerID:             offer.BuyerID.ID,
+		SellerRoutingNumber: offer.SellerID.RoutingNumber,
+		SellerID:            offer.SellerID.ID,
+		Ticker:              offer.Stock.Ticker,
+		BuyerAccountNumber:  offer.BuyerAccountNumber,
+		Status:              model.PeerNegotiationOngoing,
+		IsAuthoritative:     true,
 	}
+	applyNegotiableTerms(n, offer)
 
 	if err := s.negotiations.Create(ctx, n); err != nil {
 		return dto.ForeignBankId{}, errors.InternalErr(err)
@@ -141,20 +134,20 @@ func (s *PeerOtcService) GetByID(ctx context.Context, routingNumber int, id stri
 		return nil, errors.NotFoundErr("negotiation not found")
 	}
 
-	return toNegotiationDTO(n, s.peers.OurRoutingNumber()), nil
+	return toPeerNegotiationDTO(n), nil
 }
 
 // UpdateCounter handles §3.3 PUT /interbank/negotiations/:rn/:id — a peer
-// bank posts a counter-offer against an ongoing negotiation owned by us.
+// bank posts a counter-offer. The path :rn always carries the negotiation's
+// authoritative (seller's) routing number, so the recipient may be either the
+// authoritative seller's bank (buyer countered) or the buyer's mirror-holding
+// bank (seller countered) — both are handled here.
 //
 // Per spec §3.3: a 409 is returned when the same party tries to counter
 // twice in a row (turn violation) or when the negotiation is closed.
 // Buyer/seller identities and ticker are immutable for the lifetime of
 // the negotiation; only the negotiable parameters may change.
 func (s *PeerOtcService) UpdateCounter(ctx context.Context, senderRouting, routingNumber int, id string, offer dto.OtcOffer) error {
-	if routingNumber != s.peers.OurRoutingNumber() {
-		return errors.BadRequestErr("routingNumber does not match this bank")
-	}
 	if err := s.validateOffer(offer); err != nil {
 		return err
 	}
@@ -171,6 +164,11 @@ func (s *PeerOtcService) UpdateCounter(ctx context.Context, senderRouting, routi
 			return errors.NotFoundErr("negotiation not found")
 		}
 
+		// The path routing number must be the negotiation's authoritative
+		// (seller's) routing number, regardless of which side we hold.
+		if routingNumber != n.SellerRoutingNumber {
+			return errors.BadRequestErr("routingNumber does not match the negotiation")
+		}
 		if senderRouting != n.BuyerRoutingNumber && senderRouting != n.SellerRoutingNumber {
 			return errors.ForbiddenErr("sender is not a party to this negotiation")
 		}
@@ -191,21 +189,14 @@ func (s *PeerOtcService) UpdateCounter(ctx context.Context, senderRouting, routi
 		if n.SellerRoutingNumber != offer.SellerID.RoutingNumber || n.SellerID != offer.SellerID.ID {
 			return errors.BadRequestErr("sellerId cannot change during negotiation")
 		}
-		if n.Ticker != offer.Ticker {
+		if n.Ticker != offer.Stock.Ticker {
 			return errors.BadRequestErr("ticker cannot change during negotiation")
 		}
 		if n.BuyerAccountNumber != offer.BuyerAccountNumber {
 			return errors.BadRequestErr("buyerAccountNumber cannot change during negotiation")
 		}
 
-		n.Amount = offer.Amount
-		n.PricePerStock = offer.PricePerStock
-		n.PriceCurrency = offer.PriceCurrency
-		n.Premium = offer.Premium
-		n.PremiumCurrency = offer.PremiumCurrency
-		n.SettlementDate = offer.SettlementDate
-		n.LastModifiedByRouting = offer.LastModifiedBy.RoutingNumber
-		n.LastModifiedByID = offer.LastModifiedBy.ID
+		applyNegotiableTerms(n, offer)
 
 		if err := s.negotiations.Update(ctx, n); err != nil {
 			return errors.InternalErr(err)
@@ -215,13 +206,11 @@ func (s *PeerOtcService) UpdateCounter(ctx context.Context, senderRouting, routi
 }
 
 // Close handles §3.5 DELETE /interbank/negotiations/:rn/:id — either party
-// may withdraw from the negotiation. Operation is idempotent: closing an
-// already-closed negotiation returns success without changing state.
+// may withdraw from the negotiation; the path :rn is the authoritative
+// (seller's) routing number, so either the authoritative or the mirror side
+// may receive this. Operation is idempotent: closing an already-closed
+// negotiation returns success without changing state.
 func (s *PeerOtcService) Close(ctx context.Context, senderRouting, routingNumber int, id string) error {
-	if routingNumber != s.peers.OurRoutingNumber() {
-		return errors.BadRequestErr("routingNumber does not match this bank")
-	}
-
 	return s.txManager.WithinTransaction(ctx, func(ctx context.Context) error {
 		n, err := s.negotiations.FindByIDForUpdate(ctx, id)
 		if err != nil {
@@ -231,6 +220,9 @@ func (s *PeerOtcService) Close(ctx context.Context, senderRouting, routingNumber
 			return errors.NotFoundErr("negotiation not found")
 		}
 
+		if routingNumber != n.SellerRoutingNumber {
+			return errors.BadRequestErr("routingNumber does not match the negotiation")
+		}
 		if senderRouting != n.BuyerRoutingNumber && senderRouting != n.SellerRoutingNumber {
 			return errors.ForbiddenErr("sender is not a party to this negotiation")
 		}
@@ -249,17 +241,17 @@ func (s *PeerOtcService) Close(ctx context.Context, senderRouting, routingNumber
 }
 
 func (s *PeerOtcService) validateOffer(o dto.OtcOffer) error {
-	if strings.TrimSpace(o.Ticker) == "" {
+	if strings.TrimSpace(o.Stock.Ticker) == "" {
 		return errors.BadRequestErr("ticker is required")
 	}
 	if o.Amount <= 0 {
 		return errors.BadRequestErr("amount must be positive")
 	}
-	if o.PricePerStock <= 0 {
-		return errors.BadRequestErr("pricePerStock must be positive")
+	if o.PricePerUnit.Amount <= 0 {
+		return errors.BadRequestErr("pricePerUnit.amount must be positive")
 	}
-	if o.Premium < 0 {
-		return errors.BadRequestErr("premium must be non-negative")
+	if o.Premium.Amount < 0 {
+		return errors.BadRequestErr("premium.amount must be non-negative")
 	}
 	if strings.TrimSpace(o.BuyerAccountNumber) == "" {
 		return errors.BadRequestErr("buyerAccountNumber is required")
@@ -272,31 +264,51 @@ func (s *PeerOtcService) validateOffer(o dto.OtcOffer) error {
 	return nil
 }
 
-// toNegotiationDTO maps the persistence model back to the wire-shape used
-// on §3.4 responses.
-func toNegotiationDTO(n *model.PeerNegotiation, ourRouting int) *dto.OtcNegotiation {
-	idRouting := ourRouting
-	if !n.IsAuthoritative {
-		idRouting = n.SellerRoutingNumber
-	}
+// applyNegotiableTerms copies the mutable §3.3 fields (everything except the
+// fixed parties, ticker and buyer account) from a wire offer onto the model.
+func applyNegotiableTerms(n *model.PeerNegotiation, o dto.OtcOffer) {
+	n.Amount = o.Amount
+	n.PricePerStock = o.PricePerUnit.Amount
+	n.PriceCurrency = string(o.PricePerUnit.Currency)
+	n.Premium = o.Premium.Amount
+	n.PremiumCurrency = string(o.Premium.Currency)
+	n.SettlementDate = o.SettlementDate
+	n.LastModifiedByRouting = o.LastModifiedBy.RoutingNumber
+	n.LastModifiedByID = o.LastModifiedBy.ID
+}
 
+// offerFromModel rebuilds the spec-shaped wire OtcOffer from the flat model.
+func offerFromModel(n *model.PeerNegotiation) dto.OtcOffer {
+	return dto.OtcOffer{
+		Stock:              dto.StockDescription{Ticker: n.Ticker},
+		SettlementDate:     n.SettlementDate,
+		PricePerUnit:       dto.MonetaryValue{Currency: dto.CurrencyCode(n.PriceCurrency), Amount: n.PricePerStock},
+		Premium:            dto.MonetaryValue{Currency: dto.CurrencyCode(n.PremiumCurrency), Amount: n.Premium},
+		BuyerID:            dto.ForeignBankId{RoutingNumber: n.BuyerRoutingNumber, ID: n.BuyerID},
+		SellerID:           dto.ForeignBankId{RoutingNumber: n.SellerRoutingNumber, ID: n.SellerID},
+		Amount:             n.Amount,
+		LastModifiedBy:     dto.ForeignBankId{RoutingNumber: n.LastModifiedByRouting, ID: n.LastModifiedByID},
+		BuyerAccountNumber: n.BuyerAccountNumber,
+	}
+}
+
+// toPeerNegotiationDTO maps the model to the §3.4 wire response (OtcOffer +
+// isOngoing) served to peer banks.
+func toPeerNegotiationDTO(n *model.PeerNegotiation) *dto.OtcNegotiation {
 	return &dto.OtcNegotiation{
-		ID:        dto.ForeignBankId{RoutingNumber: idRouting, ID: n.ID},
+		OtcOffer:  offerFromModel(n),
+		IsOngoing: n.Status == model.PeerNegotiationOngoing,
+	}
+}
+
+// toNegotiationView maps the model to the richer frontend view (keeps the
+// negotiation id, human status and timestamp for our own UI).
+func toNegotiationView(n *model.PeerNegotiation) *dto.OtcNegotiationView {
+	return &dto.OtcNegotiationView{
+		ID:        dto.ForeignBankId{RoutingNumber: n.SellerRoutingNumber, ID: n.ID},
 		Status:    strings.ToLower(string(n.Status)),
 		UpdatedAt: n.UpdatedAt.Format(time.RFC3339),
-		Offer: dto.OtcOffer{
-			BuyerID:            dto.ForeignBankId{RoutingNumber: n.BuyerRoutingNumber, ID: n.BuyerID},
-			SellerID:           dto.ForeignBankId{RoutingNumber: n.SellerRoutingNumber, ID: n.SellerID},
-			Ticker:             n.Ticker,
-			Amount:             n.Amount,
-			PricePerStock:      n.PricePerStock,
-			PriceCurrency:      n.PriceCurrency,
-			Premium:            n.Premium,
-			PremiumCurrency:    n.PremiumCurrency,
-			SettlementDate:     n.SettlementDate,
-			LastModifiedBy:     dto.ForeignBankId{RoutingNumber: n.LastModifiedByRouting, ID: n.LastModifiedByID},
-			BuyerAccountNumber: n.BuyerAccountNumber,
-		},
+		Offer:     offerFromModel(n),
 	}
 }
 
@@ -382,15 +394,15 @@ func (s *PeerOtcService) ListAllPeerPublicStocks(ctx context.Context) ([]dto.Pub
 
 // ListMyNegotiations returns every cross-bank negotiation in which the
 // given local user is a party (either buyer or seller).
-func (s *PeerOtcService) ListMyNegotiations(ctx context.Context, localUserID uint) ([]dto.OtcNegotiation, error) {
+func (s *PeerOtcService) ListMyNegotiations(ctx context.Context, localUserID uint) ([]dto.OtcNegotiationView, error) {
 	rows, err := s.negotiations.ListByParty(ctx, s.peers.OurRoutingNumber(), strconv.FormatUint(uint64(localUserID), 10))
 	if err != nil {
 		return nil, errors.InternalErr(err)
 	}
 
-	out := make([]dto.OtcNegotiation, 0, len(rows))
+	out := make([]dto.OtcNegotiationView, 0, len(rows))
 	for i := range rows {
-		out = append(out, *toNegotiationDTO(&rows[i], s.peers.OurRoutingNumber()))
+		out = append(out, *toNegotiationView(&rows[i]))
 	}
 	return out, nil
 }
@@ -410,15 +422,13 @@ func (s *PeerOtcService) CreateForLocalBuyer(ctx context.Context, localUserID ui
 	}
 
 	offer := dto.OtcOffer{
+		Stock:              dto.StockDescription{Ticker: req.Ticker},
+		SettlementDate:     req.SettlementDate,
+		PricePerUnit:       monetary(req.PriceCurrency, req.PricePerStock),
+		Premium:            monetary(req.PremiumCurrency, req.Premium),
 		BuyerID:            buyer,
 		SellerID:           req.SellerID,
-		Ticker:             req.Ticker,
 		Amount:             req.Amount,
-		PricePerStock:      req.PricePerStock,
-		PriceCurrency:      req.PriceCurrency,
-		Premium:            req.Premium,
-		PremiumCurrency:    req.PremiumCurrency,
-		SettlementDate:     req.SettlementDate,
 		LastModifiedBy:     buyer,
 		BuyerAccountNumber: req.BuyerAccountNumber,
 	}
@@ -432,24 +442,17 @@ func (s *PeerOtcService) CreateForLocalBuyer(ctx context.Context, localUserID ui
 	}
 
 	mirror := &model.PeerNegotiation{
-		ID:                    remoteID.ID,
-		BuyerRoutingNumber:    buyer.RoutingNumber,
-		BuyerID:               buyer.ID,
-		SellerRoutingNumber:   req.SellerID.RoutingNumber,
-		SellerID:              req.SellerID.ID,
-		Ticker:                req.Ticker,
-		Amount:                req.Amount,
-		PricePerStock:         req.PricePerStock,
-		PriceCurrency:         req.PriceCurrency,
-		Premium:               req.Premium,
-		PremiumCurrency:       req.PremiumCurrency,
-		SettlementDate:        req.SettlementDate,
-		BuyerAccountNumber:    req.BuyerAccountNumber,
-		LastModifiedByRouting: buyer.RoutingNumber,
-		LastModifiedByID:      buyer.ID,
-		Status:                model.PeerNegotiationOngoing,
-		IsAuthoritative:       false,
+		ID:                  remoteID.ID,
+		BuyerRoutingNumber:  buyer.RoutingNumber,
+		BuyerID:             buyer.ID,
+		SellerRoutingNumber: req.SellerID.RoutingNumber,
+		SellerID:            req.SellerID.ID,
+		Ticker:              req.Ticker,
+		BuyerAccountNumber:  req.BuyerAccountNumber,
+		Status:              model.PeerNegotiationOngoing,
+		IsAuthoritative:     false,
 	}
+	applyNegotiableTerms(mirror, offer)
 	if err := s.negotiations.Create(ctx, mirror); err != nil {
 		return nil, errors.InternalErr(err)
 	}
@@ -458,7 +461,10 @@ func (s *PeerOtcService) CreateForLocalBuyer(ctx context.Context, localUserID ui
 }
 
 // SendCounterOfferAsLocal posts a counter-offer from our user against an
-// existing cross-bank negotiation. negotiationID is the authoritative id
+// existing cross-bank negotiation. Our user may be the buyer (we hold a mirror
+// row, peer is the authoritative seller) or the seller (we hold the
+// authoritative row, peer is the buyer); the counter is sent to whichever bank
+// is the opposing party. negotiationID is the authoritative id
 // (the seller's bank routing + their opaque id).
 func (s *PeerOtcService) SendCounterOfferAsLocal(
 	ctx context.Context,
@@ -466,7 +472,7 @@ func (s *PeerOtcService) SendCounterOfferAsLocal(
 	negotiationID dto.ForeignBankId,
 	req LocalCounterRequest,
 ) error {
-	mirror, err := s.findLocalMirrorByRemote(ctx, negotiationID, localUserID)
+	n, err := s.findLocalNegotiation(ctx, negotiationID, localUserID)
 	if err != nil {
 		return err
 	}
@@ -476,37 +482,40 @@ func (s *PeerOtcService) SendCounterOfferAsLocal(
 		ID:            strconv.FormatUint(uint64(localUserID), 10),
 	}
 
+	if n.Status != model.PeerNegotiationOngoing {
+		return errors.ConflictErr("negotiation is not ongoing")
+	}
+	// Turn rule: you cannot counter your own latest offer.
+	if n.LastModifiedByRouting == me.RoutingNumber && n.LastModifiedByID == me.ID {
+		return errors.ConflictErr("turn violation: you cannot counter your own latest offer")
+	}
+
 	offer := dto.OtcOffer{
-		BuyerID:            dto.ForeignBankId{RoutingNumber: mirror.BuyerRoutingNumber, ID: mirror.BuyerID},
-		SellerID:           dto.ForeignBankId{RoutingNumber: mirror.SellerRoutingNumber, ID: mirror.SellerID},
-		Ticker:             mirror.Ticker,
-		Amount:             req.Amount,
-		PricePerStock:      req.PricePerStock,
-		PriceCurrency:      req.PriceCurrency,
-		Premium:            req.Premium,
-		PremiumCurrency:    req.PremiumCurrency,
+		Stock:              dto.StockDescription{Ticker: n.Ticker},
 		SettlementDate:     req.SettlementDate,
+		PricePerUnit:       monetary(req.PriceCurrency, req.PricePerStock),
+		Premium:            monetary(req.PremiumCurrency, req.Premium),
+		BuyerID:            dto.ForeignBankId{RoutingNumber: n.BuyerRoutingNumber, ID: n.BuyerID},
+		SellerID:           dto.ForeignBankId{RoutingNumber: n.SellerRoutingNumber, ID: n.SellerID},
+		Amount:             req.Amount,
 		LastModifiedBy:     me,
-		BuyerAccountNumber: mirror.BuyerAccountNumber,
+		BuyerAccountNumber: n.BuyerAccountNumber,
 	}
 	if err := s.validateOffer(offer); err != nil {
 		return err
 	}
 
-	if err := s.client.UpdateCounter(ctx, negotiationID, offer); err != nil {
+	// Notify the opposing bank (§3.3). The path id is always the authoritative
+	// (seller's) routing + opaque id; the request goes to whichever bank is the
+	// other party.
+	authoritativeID := dto.ForeignBankId{RoutingNumber: n.SellerRoutingNumber, ID: n.ID}
+	if err := s.client.UpdateCounter(ctx, s.opposingRouting(n, me), authoritativeID, offer); err != nil {
 		return err
 	}
 
-	// Mirror the update locally so reads of "my negotiations" stay fresh.
-	mirror.Amount = req.Amount
-	mirror.PricePerStock = req.PricePerStock
-	mirror.PriceCurrency = req.PriceCurrency
-	mirror.Premium = req.Premium
-	mirror.PremiumCurrency = req.PremiumCurrency
-	mirror.SettlementDate = req.SettlementDate
-	mirror.LastModifiedByRouting = me.RoutingNumber
-	mirror.LastModifiedByID = me.ID
-	if err := s.negotiations.Update(ctx, mirror); err != nil {
+	// Reflect the update on our local copy (authoritative or mirror).
+	applyNegotiableTerms(n, offer)
+	if err := s.negotiations.Update(ctx, n); err != nil {
 		return errors.InternalErr(err)
 	}
 
@@ -663,7 +672,7 @@ func (s *PeerOtcService) ExerciseAsLocal(ctx context.Context, localUserID uint, 
 	if contract.Status != model.PeerContractActive {
 		return nil, errors.ConflictErr("contract is not active")
 	}
-	if settlementPassed(contract.SettlementDate) {
+	if SettlementPassed(contract.SettlementDate) {
 		return nil, errors.ConflictErr("option contract has expired")
 	}
 	if strings.TrimSpace(buyerAccountNumber) == "" {
@@ -684,27 +693,33 @@ func (s *PeerOtcService) ExerciseAsLocal(ctx context.Context, localUserID uint, 
 	return toPeerContractDTO(updated), nil
 }
 
-// WithdrawAsLocal closes a cross-bank negotiation from our side and
-// notifies the peer.
+// WithdrawAsLocal closes a cross-bank negotiation from our side and notifies
+// the opposing party's bank (§3.5). Works whether our user is the buyer
+// (mirror row) or the seller (authoritative row).
 func (s *PeerOtcService) WithdrawAsLocal(
 	ctx context.Context,
 	localUserID uint,
 	negotiationID dto.ForeignBankId,
 ) error {
-	mirror, err := s.findLocalMirrorByRemote(ctx, negotiationID, localUserID)
+	n, err := s.findLocalNegotiation(ctx, negotiationID, localUserID)
 	if err != nil {
 		return err
 	}
 
-	if err := s.client.Close(ctx, negotiationID); err != nil {
+	me := dto.ForeignBankId{
+		RoutingNumber: s.peers.OurRoutingNumber(),
+		ID:            strconv.FormatUint(uint64(localUserID), 10),
+	}
+	authoritativeID := dto.ForeignBankId{RoutingNumber: n.SellerRoutingNumber, ID: n.ID}
+	if err := s.client.Close(ctx, s.opposingRouting(n, me), authoritativeID); err != nil {
 		return err
 	}
 
-	if mirror.Status != model.PeerNegotiationOngoing {
+	if n.Status != model.PeerNegotiationOngoing {
 		return nil
 	}
-	mirror.Status = model.PeerNegotiationCancelled
-	if err := s.negotiations.Update(ctx, mirror); err != nil {
+	n.Status = model.PeerNegotiationCancelled
+	if err := s.negotiations.Update(ctx, n); err != nil {
 		return errors.InternalErr(err)
 	}
 
@@ -791,6 +806,49 @@ func (s *PeerOtcService) findLocalMirrorByRemote(
 		return nil, errors.NotFoundErr("negotiation not found for caller")
 	}
 	return row, nil
+}
+
+// findLocalNegotiation loads a negotiation by its authoritative id and verifies
+// the calling local user is a party — buyer or seller, mirror or authoritative.
+// Unlike findLocalMirrorByRemote it does not require a mirror row, so it serves
+// the seller side of a cross-bank negotiation too.
+func (s *PeerOtcService) findLocalNegotiation(
+	ctx context.Context,
+	negotiationID dto.ForeignBankId,
+	localUserID uint,
+) (*model.PeerNegotiation, error) {
+	userIDStr := strconv.FormatUint(uint64(localUserID), 10)
+	ourRouting := s.peers.OurRoutingNumber()
+
+	row, err := s.negotiations.FindByID(ctx, negotiationID.ID)
+	if err != nil {
+		return nil, errors.InternalErr(err)
+	}
+	// The negotiation id's routing number is always the authoritative
+	// (seller's) bank, so it must match the stored seller routing.
+	if row == nil || row.SellerRoutingNumber != negotiationID.RoutingNumber {
+		return nil, errors.NotFoundErr("negotiation not found for caller")
+	}
+	isLocalBuyer := row.BuyerRoutingNumber == ourRouting && row.BuyerID == userIDStr
+	isLocalSeller := row.SellerRoutingNumber == ourRouting && row.SellerID == userIDStr
+	if !isLocalBuyer && !isLocalSeller {
+		return nil, errors.NotFoundErr("negotiation not found for caller")
+	}
+	return row, nil
+}
+
+// opposingRouting returns the routing number of the party that is NOT the given
+// local user — i.e. the bank a counter/close notification must be sent to.
+func (s *PeerOtcService) opposingRouting(n *model.PeerNegotiation, me dto.ForeignBankId) int {
+	if n.BuyerRoutingNumber == me.RoutingNumber && n.BuyerID == me.ID {
+		return n.SellerRoutingNumber // we are the buyer → notify the seller
+	}
+	return n.BuyerRoutingNumber // we are the seller → notify the buyer
+}
+
+// monetary is a small constructor for the wire MonetaryValue shape.
+func monetary(currency string, amount float64) dto.MonetaryValue {
+	return dto.MonetaryValue{Currency: dto.CurrencyCode(currency), Amount: amount}
 }
 
 func (s *PeerOtcService) coordinateAcceptTransaction(ctx context.Context, n *model.PeerNegotiation) error {
@@ -915,7 +973,7 @@ func (s *PeerOtcService) coordinateTwoBankTransaction(ctx context.Context, peerR
 	newTxKey := keyPrefix + "-new"
 
 	// Step 1: prepare locally + enqueue NEW_TX outbox row atomically.
-	_, localVote, newTxMsg, err := s.processor.PrepareAndEnqueueNewTx(ctx, &tx, peerRouting, newTxKey)
+	_, localVote, newTxMsg, err := s.processor.PrepareAndEnqueueNewTx(ctx, &tx, peerRouting, newTxKey, model.FlowTypeOTC, 0)
 	if err != nil {
 		return errors.InternalErr(err)
 	}
@@ -925,7 +983,7 @@ func (s *PeerOtcService) coordinateTwoBankTransaction(ctx context.Context, peerR
 
 	if peerRouting == s.peers.OurRoutingNumber() {
 		// Same-bank: commit locally, no remote messaging or outbox row needed.
-		_, _, err = s.processor.CommitAndEnqueueFollowUp(ctx, tx.TransactionID, peerRouting, keyPrefix+"-commit")
+		_, _, err = s.processor.CommitAndEnqueueFollowUp(ctx, tx.TransactionID, peerRouting, keyPrefix+"-commit", model.FlowTypeOTC)
 		if err != nil {
 			return errors.InternalErr(err)
 		}
@@ -954,7 +1012,7 @@ func (s *PeerOtcService) coordinateTwoBankTransaction(ctx context.Context, peerR
 
 	// Step 3b: peer voted YES — commit + enqueue COMMIT_TX atomically; try sync send.
 	commitKey := keyPrefix + "-commit"
-	_, commitMsg, err := s.processor.CommitAndEnqueueFollowUp(ctx, tx.TransactionID, peerRouting, commitKey)
+	_, commitMsg, err := s.processor.CommitAndEnqueueFollowUp(ctx, tx.TransactionID, peerRouting, commitKey, model.FlowTypeOTC)
 	if err != nil {
 		return errors.InternalErr(err)
 	}
@@ -992,9 +1050,9 @@ func voteReasonsValue(vote *dto.TransactionVote) string {
 	return voteReasons(*vote)
 }
 
-// settlementPassed returns true when the settlement date string (ISO 8601
+// SettlementPassed returns true when the settlement date string (ISO 8601
 // date or datetime) represents a point in time that has already passed.
-func settlementPassed(settlementDate string) bool {
+func SettlementPassed(settlementDate string) bool {
 	if t, err := time.Parse(time.RFC3339, settlementDate); err == nil {
 		return time.Now().After(t)
 	}
@@ -1003,4 +1061,3 @@ func settlementPassed(settlementDate string) bool {
 	}
 	return false
 }
-

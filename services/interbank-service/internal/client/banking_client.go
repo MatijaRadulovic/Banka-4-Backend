@@ -14,4 +14,8 @@ type BankingClient interface {
 	PrepareInterbankCashPosting(ctx context.Context, req *pb.PrepareInterbankCashPostingRequest) (*pb.InterbankCashPostingResponse, error)
 	CommitInterbankCashPosting(ctx context.Context, postingID string) (*pb.InterbankCashPostingResponse, error)
 	RollbackInterbankCashPosting(ctx context.Context, postingID string) (*pb.InterbankCashPostingResponse, error)
+	// FinalizeInterbankPayment reports the final 2PC outcome of a banking-initiated
+	// inter-bank payment back to banking-service so it can flip the transaction
+	// out of its Processing state.
+	FinalizeInterbankPayment(ctx context.Context, bankingTxID uint64, success bool) error
 }

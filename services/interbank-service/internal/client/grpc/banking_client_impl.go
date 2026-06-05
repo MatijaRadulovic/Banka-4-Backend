@@ -42,3 +42,8 @@ func (b *bankingClient) CommitInterbankCashPosting(ctx context.Context, postingI
 func (b *bankingClient) RollbackInterbankCashPosting(ctx context.Context, postingID string) (*pb.InterbankCashPostingResponse, error) {
 	return b.c.RollbackInterbankCashPosting(ctx, &pb.InterbankCashPostingRequest{PostingId: postingID})
 }
+
+func (b *bankingClient) FinalizeInterbankPayment(ctx context.Context, bankingTxID uint64, success bool) error {
+	_, err := b.c.FinalizeInterbankPayment(ctx, &pb.FinalizeInterbankPaymentRequest{BankingTxId: bankingTxID, Success: success})
+	return err
+}

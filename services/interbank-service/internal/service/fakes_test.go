@@ -222,6 +222,16 @@ func (r *fakeOutbound) statusByKey(key string) (model.OutboundMessageStatus, boo
 	return r.rows[id].Status, true
 }
 
+func (r *fakeOutbound) byKeyRow(key string) (model.OutboundMessage, bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	id, ok := r.byKey[key]
+	if !ok {
+		return model.OutboundMessage{}, false
+	}
+	return *r.rows[id], true
+}
+
 // ---------------------------------------------------------------------------
 // Peer contract repository.
 // ---------------------------------------------------------------------------
@@ -291,13 +301,12 @@ func (r *fakeContracts) Update(_ context.Context, c *model.PeerContract) error {
 	return nil
 }
 
-func (r *fakeContracts) FindActiveExpired(_ context.Context, before time.Time) ([]model.PeerContract, error) {
+func (r *fakeContracts) FindActive(_ context.Context) ([]model.PeerContract, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	var out []model.PeerContract
-	cutoff := before.Format("2006-01-02")
 	for _, row := range r.rows {
-		if row.Status == model.PeerContractActive && row.SettlementDate <= cutoff {
+		if row.Status == model.PeerContractActive {
 			out = append(out, row)
 		}
 	}
@@ -368,13 +377,12 @@ func (r *fakeNegotiations) ListByParty(_ context.Context, routing int, partyID s
 	return out, nil
 }
 
-func (r *fakeNegotiations) FindOngoingExpired(_ context.Context, before time.Time) ([]model.PeerNegotiation, error) {
+func (r *fakeNegotiations) FindOngoing(_ context.Context) ([]model.PeerNegotiation, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	var out []model.PeerNegotiation
-	cutoff := before.Format("2006-01-02")
 	for _, row := range r.rows {
-		if row.Status == model.PeerNegotiationOngoing && row.SettlementDate <= cutoff {
+		if row.Status == model.PeerNegotiationOngoing {
 			out = append(out, row)
 		}
 	}
@@ -401,6 +409,12 @@ type fakeBanking struct {
 	prepareCalls  []*pb.PrepareInterbankCashPostingRequest
 	commitCalls   []string
 	rollbackCalls []string
+	finalizeCalls []finalizeCall
+}
+
+type finalizeCall struct {
+	bankingTxID uint64
+	success     bool
 }
 
 func (b *fakeBanking) ReserveOtcFunds(context.Context, *pb.ReserveOtcFundsRequest) (*pb.OtcFundsReservationResponse, error) {
@@ -444,6 +458,21 @@ func (b *fakeBanking) RollbackInterbankCashPosting(_ context.Context, postingID 
 		return nil, b.rollbackErr
 	}
 	return &pb.InterbankCashPostingResponse{}, nil
+}
+
+func (b *fakeBanking) FinalizeInterbankPayment(_ context.Context, bankingTxID uint64, success bool) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.finalizeCalls = append(b.finalizeCalls, finalizeCall{bankingTxID: bankingTxID, success: success})
+	return nil
+}
+
+func (b *fakeBanking) finalizations() []finalizeCall {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	out := make([]finalizeCall, len(b.finalizeCalls))
+	copy(out, b.finalizeCalls)
+	return out
 }
 
 func (b *fakeBanking) prepareCount() int {

@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/RAF-SI-2025/Banka-4-Backend/common/pkg/db"
 	"github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/model"
@@ -66,11 +65,11 @@ func (r *peerContractRepository) Update(ctx context.Context, contract *model.Pee
 	return db.DBFromContext(ctx, r.db).Save(contract).Error
 }
 
-func (r *peerContractRepository) FindActiveExpired(ctx context.Context, before time.Time) ([]model.PeerContract, error) {
+func (r *peerContractRepository) FindActive(ctx context.Context) ([]model.PeerContract, error) {
 	var rows []model.PeerContract
 
 	err := db.DBFromContext(ctx, r.db).
-		Where("status = ? AND settlement_date <= ?", model.PeerContractActive, before.Format("2006-01-02")).
+		Where("status = ?", model.PeerContractActive).
 		Order("settlement_date ASC").
 		Find(&rows).Error
 

@@ -19,6 +19,7 @@ service BankingService {
   rpc PrepareInterbankCashPosting(PrepareInterbankCashPostingRequest) returns (InterbankCashPostingResponse);
   rpc CommitInterbankCashPosting(InterbankCashPostingRequest) returns (InterbankCashPostingResponse);
   rpc RollbackInterbankCashPosting(InterbankCashPostingRequest) returns (InterbankCashPostingResponse);
+  rpc FinalizeInterbankPayment(FinalizeInterbankPaymentRequest) returns (FinalizeInterbankPaymentResponse);
 }
 
 enum TradeSettlementDirection {
@@ -163,3 +164,10 @@ message InterbankCashPostingResponse {
   double amount = 4;
   string status = 5;
 }
+
+message FinalizeInterbankPaymentRequest {
+  uint64 banking_tx_id = 1;
+  bool success = 2;
+}
+
+message FinalizeInterbankPaymentResponse {}

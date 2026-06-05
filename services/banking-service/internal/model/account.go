@@ -38,6 +38,13 @@ const (
 	BranchCode = "0001"
 )
 
+// IsForeignAccountNumber reports whether an account number belongs to another
+// bank — i.e. its 3-digit bank code prefix is not ours. Such payments are
+// settled through interbank-service (2PC), not the local ledger.
+func IsForeignAccountNumber(accountNumber string) bool {
+	return len(accountNumber) >= 3 && accountNumber[:3] != BankCode
+}
+
 const (
 	DefaultDailyLimitRSD   = 250000.0
 	DefaultMonthlyLimitRSD = 1000000.0

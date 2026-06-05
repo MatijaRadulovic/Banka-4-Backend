@@ -130,10 +130,14 @@ func (p *MessageProcessor) ProcessRollbackTx(ctx context.Context, peerRouting in
 // leaving the reservation stranded with no record to release it.
 //
 // Phase 1 (own DB tx): balance check + write PREPARING record (or short-circuit
-//   on an existing terminal/in-progress record).
+//
+//	on an existing terminal/in-progress record).
+//
 // Phase 2 (no tx):     run each local posting reservation (idempotent by
-//   posting/contract id).  On failure: rollback already-issued effects, mark
-//   the record ROLLED_BACK, return NO vote.
+//
+//	posting/contract id).  On failure: rollback already-issued effects, mark
+//	the record ROLLED_BACK, return NO vote.
+//
 // Phase 3 (own DB tx): flip PREPARING → PREPARED, return YES vote.
 //
 // CRITICAL: this function manages its own transactions.  It must NOT be called
@@ -560,7 +564,7 @@ func (p *MessageProcessor) prepareStockPosting(ctx context.Context, tx *dto.Tran
 		if contract.Status != model.PeerContractActive {
 			return nil, dto.ReasonOptionUsedOrExpired, fmt.Errorf("option contract is not active")
 		}
-		if settlementPassed(contract.SettlementDate) {
+		if SettlementPassed(contract.SettlementDate) {
 			return nil, dto.ReasonOptionUsedOrExpired, fmt.Errorf("option contract has expired")
 		}
 		// Shares are already reserved by the accept TX — no new reservation.
@@ -1015,6 +1019,8 @@ func (p *MessageProcessor) PrepareAndEnqueueNewTx(
 	tx *dto.Transaction,
 	peerRouting int,
 	idempotenceKey string,
+	flowType string,
+	bankingTxID uint64,
 ) (int, dto.TransactionVote, *model.OutboundMessage, error) {
 	// Phase 1-3: phased prepare manages its own transactions — must NOT be
 	// called inside a wrapping WithinTransaction.
@@ -1037,7 +1043,7 @@ func (p *MessageProcessor) PrepareAndEnqueueNewTx(
 	if err != nil {
 		return http.StatusInternalServerError, vote, nil, err
 	}
-	outMsg := buildOtcOutboundMessage(peerRouting, dto.MessageTypeNewTx, idempotenceKey, payload)
+	outMsg := buildOutboundMessage(peerRouting, dto.MessageTypeNewTx, idempotenceKey, payload, flowType, bankingTxID)
 	if err := p.outboundRepo.Enqueue(ctx, outMsg); err != nil {
 		return http.StatusInternalServerError, vote, nil, err
 	}
@@ -1051,6 +1057,7 @@ func (p *MessageProcessor) CommitAndEnqueueFollowUp(
 	txID dto.ForeignBankId,
 	peerRouting int,
 	idempotenceKey string,
+	flowType string,
 ) (int, *model.OutboundMessage, error) {
 	var statusCode int
 	var outMsg *model.OutboundMessage
@@ -1069,7 +1076,7 @@ func (p *MessageProcessor) CommitAndEnqueueFollowUp(
 		if err != nil {
 			return err
 		}
-		outMsg = buildOtcOutboundMessage(peerRouting, dto.MessageTypeCommitTx, idempotenceKey, payload)
+		outMsg = buildOutboundMessage(peerRouting, dto.MessageTypeCommitTx, idempotenceKey, payload, flowType, 0)
 		return p.outboundRepo.Enqueue(ctx, outMsg)
 	})
 	return statusCode, outMsg, err
@@ -1083,6 +1090,7 @@ func (p *MessageProcessor) RollbackAndEnqueueFollowUp(
 	txID dto.ForeignBankId,
 	peerRouting int,
 	idempotenceKey string,
+	flowType string,
 ) (int, *model.OutboundMessage, error) {
 	var statusCode int
 	var outMsg *model.OutboundMessage
@@ -1101,19 +1109,26 @@ func (p *MessageProcessor) RollbackAndEnqueueFollowUp(
 		if err != nil {
 			return err
 		}
-		outMsg = buildOtcOutboundMessage(peerRouting, dto.MessageTypeRollbackTx, idempotenceKey, payload)
+		outMsg = buildOutboundMessage(peerRouting, dto.MessageTypeRollbackTx, idempotenceKey, payload, flowType, 0)
 		return p.outboundRepo.Enqueue(ctx, outMsg)
 	})
 	return statusCode, outMsg, err
 }
 
-func buildOtcOutboundMessage(peerRouting int, msgType dto.MessageType, idempotenceKey string, payload []byte) *model.OutboundMessage {
+// FinalizeInterbankPayment reports a PAYMENT's final 2PC outcome to
+// banking-service so it can move the originating transaction out of Processing.
+func (p *MessageProcessor) FinalizeInterbankPayment(ctx context.Context, bankingTxID uint64, success bool) error {
+	return p.banking.FinalizeInterbankPayment(ctx, bankingTxID, success)
+}
+
+func buildOutboundMessage(peerRouting int, msgType dto.MessageType, idempotenceKey string, payload []byte, flowType string, bankingTxID uint64) *model.OutboundMessage {
 	return &model.OutboundMessage{
 		PeerRoutingNumber:   peerRouting,
 		MessageType:         string(msgType),
 		IdempotenceKeyLocal: idempotenceKey,
 		Payload:             payload,
-		FlowType:            "OTC",
+		FlowType:            flowType,
+		BankingTxID:         bankingTxID,
 		Status:              model.OutboundPending,
 	}
 }

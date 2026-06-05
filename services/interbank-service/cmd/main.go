@@ -20,6 +20,7 @@ import (
 	"github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/client"
 	clientgrpc "github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/client/grpc"
 	"github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/config"
+	grpcsvc "github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/grpc"
 	"github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/handler"
 	"github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/job"
 	"github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/model"
@@ -50,7 +51,6 @@ func main() {
 			clientgrpc.NewUserClient,
 			clientgrpc.NewTradingClient,
 			clientgrpc.NewBankingClient,
-			clientgrpc.NewOutboxBankingClient,
 
 			// PermissionService is exposed by user-service, so it shares
 			// the user-service gRPC connection.
@@ -66,7 +66,6 @@ func main() {
 			repository.NewGormTransactionManager,
 			repository.NewInboundMessageRepository,
 			repository.NewOutboundMessageRepository,
-			repository.NewOutboundPaymentRepository,
 			repository.NewPreparedTransactionRepository,
 			repository.NewPeerNegotiationRepository,
 			repository.NewPeerContractRepository,
@@ -74,6 +73,8 @@ func main() {
 			service.NewMessageProcessor,
 			service.NewPeerOtcService,
 			service.NewPeerOtcClient,
+
+			grpcsvc.NewInterbankGRPCService,
 
 			job.NewOutboxWorker,
 			job.NewContractExpiryJob,
@@ -109,5 +110,6 @@ func main() {
 			})
 		}),
 		fx.Invoke(server.NewServer),
+		fx.Invoke(server.NewGRPCServer),
 	).Run()
 }

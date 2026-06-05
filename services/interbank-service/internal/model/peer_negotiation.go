@@ -40,14 +40,14 @@ type PeerNegotiation struct {
 	SellerID            string `gorm:"not null;size:64;column:seller_id"`
 
 	// Offer contents (§3.2 OtcOffer body).
-	Ticker              string  `gorm:"not null;size:16;column:ticker"`
-	Amount              int     `gorm:"not null;column:amount"`
-	PricePerStock       float64 `gorm:"not null;column:price_per_stock"`
-	PriceCurrency       string  `gorm:"not null;size:8;column:price_currency"`
-	Premium             float64 `gorm:"not null;column:premium"`
-	PremiumCurrency     string  `gorm:"not null;size:8;column:premium_currency"`
-	SettlementDate      string  `gorm:"not null;column:settlement_date"`
-	BuyerAccountNumber  string  `gorm:"not null;size:64;column:buyer_account_number"`
+	Ticker             string  `gorm:"not null;size:16;column:ticker"`
+	Amount             int     `gorm:"not null;column:amount"`
+	PricePerStock      float64 `gorm:"not null;column:price_per_stock"`
+	PriceCurrency      string  `gorm:"not null;size:8;column:price_currency"`
+	Premium            float64 `gorm:"not null;column:premium"`
+	PremiumCurrency    string  `gorm:"not null;size:8;column:premium_currency"`
+	SettlementDate     string  `gorm:"not null;column:settlement_date"`
+	BuyerAccountNumber string  `gorm:"not null;size:64;column:buyer_account_number"`
 
 	// Tracking the last modifier — required for §3.3 turn enforcement
 	// ("the party opposite to lastModifiedBy may post the next update").

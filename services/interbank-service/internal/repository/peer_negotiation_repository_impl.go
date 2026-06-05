@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"errors"
-	"time"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -77,11 +76,11 @@ func (r *peerNegotiationRepository) ListByParty(ctx context.Context, routingNumb
 	return rows, err
 }
 
-func (r *peerNegotiationRepository) FindOngoingExpired(ctx context.Context, before time.Time) ([]model.PeerNegotiation, error) {
+func (r *peerNegotiationRepository) FindOngoing(ctx context.Context) ([]model.PeerNegotiation, error) {
 	var rows []model.PeerNegotiation
 
 	err := db.DBFromContext(ctx, r.db).
-		Where("status = ? AND settlement_date <= ?", model.PeerNegotiationOngoing, before.Format("2006-01-02")).
+		Where("status = ?", model.PeerNegotiationOngoing).
 		Order("settlement_date ASC").
 		Find(&rows).Error
 
