@@ -11,8 +11,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/google/uuid"
-
 	"github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/config"
 	"github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/dto"
 	"github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/model"
@@ -104,6 +102,15 @@ func (w *OutboxWorker) processOne(ctx context.Context, msg *model.OutboundMessag
 
 	newAttempts := msg.Attempts + 1
 
+	// Same-bank COMMIT/ROLLBACK: drive the processor directly instead of HTTP.
+	// This is the recovery path for same-bank 2PC — no remote message needed,
+	// CommitLocalTransaction/RollbackLocalTransaction are idempotent.
+	if msg.PeerRoutingNumber == w.ourRoutingNumber &&
+		(msg.MessageType == string(dto.MessageTypeCommitTx) || msg.MessageType == string(dto.MessageTypeRollbackTx)) {
+		w.handleSameBankFollowUp(ctx, msg, newAttempts)
+		return
+	}
+
 	respStatus, respBody, err := w.sendHTTP(ctx, peer, msg.Payload)
 	if err != nil {
 		w.rescheduleOrFail(ctx, msg, newAttempts, err.Error(), 0, nil)
@@ -124,6 +131,56 @@ func (w *OutboxWorker) processOne(ctx context.Context, msg *model.OutboundMessag
 	}
 }
 
+// handleSameBankFollowUp drives a COMMIT_TX or ROLLBACK_TX for a same-bank
+// transaction by calling the MessageProcessor directly. This is the recovery
+// path: the PreparedTransaction record already exists (written atomically with
+// the outbox row), so CommitLocalTransaction/RollbackLocalTransaction replay
+// the effects idempotently.
+func (w *OutboxWorker) handleSameBankFollowUp(ctx context.Context, msg *model.OutboundMessage, attempts int) {
+	// Extract the transaction ID from the payload.
+	var txID dto.ForeignBankId
+	switch msg.MessageType {
+	case string(dto.MessageTypeCommitTx):
+		var m dto.CommitTxMessage
+		if err := json.Unmarshal(msg.Payload, &m); err != nil {
+			_ = w.outboundMessageRepo.MarkFailed(ctx, msg.ID, "failed to decode commit payload: "+err.Error())
+			return
+		}
+		txID = m.Message.TransactionID
+	case string(dto.MessageTypeRollbackTx):
+		var m dto.RollbackTxMessage
+		if err := json.Unmarshal(msg.Payload, &m); err != nil {
+			_ = w.outboundMessageRepo.MarkFailed(ctx, msg.ID, "failed to decode rollback payload: "+err.Error())
+			return
+		}
+		txID = m.Message.TransactionID
+	}
+
+	var statusCode int
+	var err error
+	if msg.MessageType == string(dto.MessageTypeCommitTx) {
+		statusCode, err = w.messageProcessor.CommitLocalTransaction(ctx, txID)
+	} else {
+		statusCode, err = w.messageProcessor.RollbackLocalTransaction(ctx, txID)
+	}
+
+	if err != nil {
+		w.rescheduleOrFail(ctx, msg, attempts, err.Error(), 0, nil)
+		return
+	}
+	switch statusCode {
+	case http.StatusNoContent:
+		if err := w.outboundMessageRepo.MarkSent(ctx, msg.ID, statusCode, nil); err != nil {
+			zap.L().Error("outbox: same-bank MarkSent failed", zap.Uint("id", msg.ID), zap.Error(err))
+		}
+	case http.StatusAccepted:
+		// PREPARING gate — reserves not yet confirmed; retry later.
+		w.rescheduleOrFail(ctx, msg, attempts, "transaction still preparing", statusCode, nil)
+	default:
+		w.rescheduleOrFail(ctx, msg, attempts, fmt.Sprintf("unexpected status %d", statusCode), statusCode, nil)
+	}
+}
+
 func (w *OutboxWorker) handleNewTxResponse(ctx context.Context, msg *model.OutboundMessage, attempts, respStatus int, respBody []byte) {
 	if respStatus == http.StatusAccepted {
 		w.rescheduleOrFail(ctx, msg, attempts, "peer returned 202 (still preparing)", respStatus, respBody)
@@ -141,17 +198,21 @@ func (w *OutboxWorker) handleNewTxResponse(ctx context.Context, msg *model.Outbo
 		return
 	}
 
-	if err := w.outboundMessageRepo.MarkSent(ctx, msg.ID, respStatus, respBody); err != nil {
-		zap.L().Error("outbox: MarkSent failed", zap.Uint("id", msg.ID), zap.Error(err))
-		return
-	}
-
 	if msg.FlowType == "OTC" {
+		// Commit/rollback locally + enqueue the follow-up BEFORE marking NEW_TX
+		// as SENT. If we crash after the follow-up enqueue but before MarkSent,
+		// NEW_TX is retried and CommitAndEnqueue is a no-op (idempotent key +
+		// ON CONFLICT DO NOTHING). If we crash before the follow-up enqueue,
+		// NEW_TX is retried and the whole path is retried cleanly.
 		w.handleOtcNewTxVote(ctx, msg, vote)
+		if err := w.outboundMessageRepo.MarkSent(ctx, msg.ID, respStatus, respBody); err != nil {
+			zap.L().Error("outbox: MarkSent failed", zap.Uint("id", msg.ID), zap.Error(err))
+		}
 		return
 	}
 
-	// PAYMENT flow: use BankingServiceClient + enqueueFollowUp.
+	// PAYMENT flow: commit/rollback + enqueue follow-up before MarkSent for
+	// the same ordering guarantee.
 	var wireMsg dto.NewTxMessage
 	if err := json.Unmarshal(msg.Payload, &wireMsg); err != nil {
 		zap.L().Error("outbox: failed to decode NEW_TX payload", zap.Uint("id", msg.ID), zap.Error(err))
@@ -170,10 +231,15 @@ func (w *OutboxWorker) handleNewTxResponse(ctx context.Context, msg *model.Outbo
 	} else {
 		w.rollbackAndEnqueue(ctx, payment, txIDKey, msg.PeerRoutingNumber, &wireMsg.Message)
 	}
+
+	if err := w.outboundMessageRepo.MarkSent(ctx, msg.ID, respStatus, respBody); err != nil {
+		zap.L().Error("outbox: MarkSent failed", zap.Uint("id", msg.ID), zap.Error(err))
+	}
 }
 
 // handleOtcNewTxVote handles the post-vote action for OTC 2PC transactions.
-// Instead of calling BankingServiceClient, it calls MessageProcessor directly.
+// Keys are derived deterministically from the NEW_TX key so retries are
+// idempotent. MarkSent for NEW_TX is done by the caller after this returns.
 func (w *OutboxWorker) handleOtcNewTxVote(ctx context.Context, msg *model.OutboundMessage, vote dto.TransactionVote) {
 	var wireMsg dto.NewTxMessage
 	if err := json.Unmarshal(msg.Payload, &wireMsg); err != nil {
@@ -183,7 +249,7 @@ func (w *OutboxWorker) handleOtcNewTxVote(ctx context.Context, msg *model.Outbou
 	txID := wireMsg.Message.TransactionID
 
 	if vote.Vote == dto.VoteYes {
-		commitKey := uuid.New().String()
+		commitKey := msg.IdempotenceKeyLocal + "-commit"
 		_, commitMsg, err := w.messageProcessor.CommitAndEnqueueFollowUp(ctx, txID, msg.PeerRoutingNumber, commitKey)
 		if err != nil {
 			zap.L().Error("outbox: OTC CommitAndEnqueueFollowUp failed", zap.String("txID", txID.ID), zap.Error(err))
@@ -195,7 +261,7 @@ func (w *OutboxWorker) handleOtcNewTxVote(ctx context.Context, msg *model.Outbou
 			}
 		}
 	} else {
-		rollbackKey := uuid.New().String()
+		rollbackKey := msg.IdempotenceKeyLocal + "-rollback"
 		_, rollbackMsg, err := w.messageProcessor.RollbackAndEnqueueFollowUp(ctx, txID, msg.PeerRoutingNumber, rollbackKey)
 		if err != nil {
 			zap.L().Error("outbox: OTC RollbackAndEnqueueFollowUp failed", zap.String("txID", txID.ID), zap.Error(err))
@@ -226,7 +292,12 @@ func (w *OutboxWorker) rollbackAndEnqueue(ctx context.Context, payment *model.Ou
 }
 
 func (w *OutboxWorker) enqueueFollowUp(ctx context.Context, peerRouting int, txIDKey string, msgType dto.MessageType, tx *dto.Transaction) {
-	idempotenceKey := uuid.New().String()
+	var idempotenceKey string
+	if msgType == dto.MessageTypeCommitTx {
+		idempotenceKey = txIDKey + "-commit"
+	} else {
+		idempotenceKey = txIDKey + "-rollback"
+	}
 	var body any
 	if msgType == dto.MessageTypeCommitTx {
 		body = dto.CommitTxMessage{
@@ -267,7 +338,7 @@ func (w *OutboxWorker) rescheduleOrFail(ctx context.Context, msg *model.Outbound
 			var wireMsg dto.NewTxMessage
 			if err := json.Unmarshal(msg.Payload, &wireMsg); err == nil {
 				if msg.FlowType == "OTC" {
-					rollbackKey := uuid.New().String()
+					rollbackKey := msg.IdempotenceKeyLocal + "-rollback"
 					_, _, _ = w.messageProcessor.RollbackAndEnqueueFollowUp(ctx, wireMsg.Message.TransactionID, msg.PeerRoutingNumber, rollbackKey)
 				} else {
 					txIDKey := wireMsg.Message.TransactionID.ID

@@ -65,10 +65,48 @@ func NewMessageProcessor(
 }
 
 func (p *MessageProcessor) ProcessNewTx(ctx context.Context, peerRouting int, key dto.IdempotenceKey, tx *dto.Transaction) (int, any, error) {
-	return p.processInbound(ctx, peerRouting, key, dto.MessageTypeNewTx, tx, func(ctx context.Context) (int, any, error) {
-		statusCode, vote, err := p.PrepareLocalTransaction(ctx, tx)
-		return statusCode, vote, err
+	// Check inbound dedup first — same logic as processInbound but without
+	// wrapping PrepareLocalTransaction in a transaction (the phased prepare
+	// manages its own commits and must NOT run inside an outer tx).
+	existing, err := p.inbound.FindByKey(ctx, peerRouting, key.LocallyGeneratedKey)
+	if err != nil {
+		return http.StatusInternalServerError, nil, err
+	}
+	if existing != nil {
+		if existing.ResponseStatus != http.StatusAccepted {
+			var cached any
+			if len(existing.ResponseBody) > 0 {
+				var vote dto.TransactionVote
+				if err := json.Unmarshal(existing.ResponseBody, &vote); err == nil {
+					cached = vote
+				}
+			}
+			return existing.ResponseStatus, cached, nil
+		}
+		// 202 means the previous attempt was unfinished; fall through to retry.
+	}
+
+	statusCode, vote, err := p.PrepareLocalTransaction(ctx, tx)
+	if err != nil {
+		return http.StatusInternalServerError, nil, err
+	}
+
+	// Persist the inbound record non-transactionally. The PreparedTransaction
+	// row written by the phased prepare is the real recovery anchor — losing
+	// this inbound row just means a retransmit recomputes the identical vote.
+	requestBody, _ := json.Marshal(tx)
+	responseBody, _ := json.Marshal(vote)
+	_ = p.inbound.Save(ctx, &model.InboundMessage{
+		PeerRoutingNumber:   peerRouting,
+		LocallyGeneratedKey: key.LocallyGeneratedKey,
+		MessageType:         string(dto.MessageTypeNewTx),
+		RequestBody:         requestBody,
+		ResponseStatus:      statusCode,
+		ResponseBody:        responseBody,
+		ProcessedAt:         time.Now(),
 	})
+
+	return statusCode, vote, nil
 }
 
 func (p *MessageProcessor) ProcessCommitTx(ctx context.Context, peerRouting int, key dto.IdempotenceKey, msg *dto.CommitTransaction) (int, any, error) {
@@ -85,77 +123,110 @@ func (p *MessageProcessor) ProcessRollbackTx(ctx context.Context, peerRouting in
 	})
 }
 
+// PrepareLocalTransaction runs in three separate phases so that the recovery
+// anchor (the PreparedTransaction row with its body) is always committed to
+// disk before any external reservation is issued.  This eliminates the
+// dual-write leak where a reservation succeeds but our transaction rolls back,
+// leaving the reservation stranded with no record to release it.
+//
+// Phase 1 (own DB tx): balance check + write PREPARING record (or short-circuit
+//   on an existing terminal/in-progress record).
+// Phase 2 (no tx):     run each local posting reservation (idempotent by
+//   posting/contract id).  On failure: rollback already-issued effects, mark
+//   the record ROLLED_BACK, return NO vote.
+// Phase 3 (own DB tx): flip PREPARING → PREPARED, return YES vote.
+//
+// CRITICAL: this function manages its own transactions.  It must NOT be called
+// inside an outer WithinTransaction — that would collapse all three phases into
+// one tx and reintroduce the leak.
 func (p *MessageProcessor) PrepareLocalTransaction(ctx context.Context, tx *dto.Transaction) (int, dto.TransactionVote, error) {
-	statusCode := http.StatusOK
-	var vote dto.TransactionVote
-	err := p.txManager.WithinTransaction(ctx, func(ctx context.Context) error {
-		if tx == nil {
-			vote = dto.TransactionVote{}
-			return fmt.Errorf("invalid transaction")
-		}
-		if reason := p.balanceFailure(tx); reason != nil {
-			vote = dto.TransactionVote{Vote: dto.VoteNo, Reasons: []dto.NoVoteReason{*reason}}
-			return nil
-		}
+	if tx == nil {
+		return http.StatusInternalServerError, dto.TransactionVote{}, fmt.Errorf("invalid transaction")
+	}
+	if reason := p.balanceFailure(tx); reason != nil {
+		return http.StatusOK, dto.TransactionVote{Vote: dto.VoteNo, Reasons: []dto.NoVoteReason{*reason}}, nil
+	}
 
+	body, err := json.Marshal(tx)
+	if err != nil {
+		return http.StatusInternalServerError, dto.TransactionVote{}, err
+	}
+
+	// --- Phase 1: persist intent -------------------------------------------
+	var rec *model.PreparedTransaction
+	err = p.txManager.WithinTransaction(ctx, func(ctx context.Context) error {
 		existing, err := p.prepared.FindByID(ctx, tx.TransactionID.RoutingNumber, tx.TransactionID.ID)
 		if err != nil {
-			statusCode = http.StatusInternalServerError
-			vote = dto.TransactionVote{}
 			return err
 		}
-
 		if existing != nil {
-			if existing.Status == model.PreparedTransactionRolledBack {
-				vote = dto.TransactionVote{Vote: dto.VoteNo, Reasons: []dto.NoVoteReason{{Reason: dto.ReasonUnbalancedTx}}}
-				return nil
-			}
-			vote = dto.TransactionVote{Vote: dto.VoteYes}
+			rec = existing
 			return nil
 		}
-
-		body, err := json.Marshal(tx)
-		if err != nil {
-			statusCode = http.StatusInternalServerError
-			vote = dto.TransactionVote{}
-			return err
-		}
-
-		var prepared []preparedItem
-		for i := range tx.Postings {
-			if !p.isLocalPosting(tx.Postings[i]) {
-				continue
-			}
-			item, reason, err := p.preparePosting(ctx, tx, i)
-			if err != nil {
-				p.rollbackEffects(ctx, prepared)
-				statusCode = http.StatusOK
-				vote = noVote(reason, &tx.Postings[i])
-				return nil
-			}
-			if item != nil {
-				prepared = append(prepared, *item)
-			}
-		}
-
-		rec := &model.PreparedTransaction{
+		rec = &model.PreparedTransaction{
 			RoutingNumber: tx.TransactionID.RoutingNumber,
 			ID:            tx.TransactionID.ID,
-			Status:        model.PreparedTransactionPrepared,
+			Status:        model.PreparedTransactionPreparing,
 			RequestBody:   body,
 		}
-		if err := p.prepared.Create(ctx, rec); err != nil {
-			p.rollbackEffects(ctx, prepared)
-			statusCode = http.StatusInternalServerError
-			vote = dto.TransactionVote{}
-			return err
-		}
-
-		statusCode = http.StatusOK
-		vote = dto.TransactionVote{Vote: dto.VoteYes}
-		return nil
+		return p.prepared.Create(ctx, rec)
 	})
-	return statusCode, vote, err
+	if err != nil {
+		return http.StatusInternalServerError, dto.TransactionVote{}, err
+	}
+
+	// Short-circuit on existing terminal or in-progress state.
+	switch rec.Status {
+	case model.PreparedTransactionCommitted, model.PreparedTransactionPrepared:
+		return http.StatusOK, dto.TransactionVote{Vote: dto.VoteYes}, nil
+	case model.PreparedTransactionRolledBack:
+		return http.StatusOK, dto.TransactionVote{Vote: dto.VoteNo, Reasons: []dto.NoVoteReason{{Reason: dto.ReasonUnbalancedTx}}}, nil
+	case model.PreparedTransactionPreparing:
+		// Either we just created it, or a previous attempt left it here
+		// (crash/retry).  Re-run the reserves — they are all idempotent.
+	}
+
+	// --- Phase 2: external reservations (no wrapping tx) -------------------
+	var effects []preparedItem
+	var noVoteResult *dto.TransactionVote
+	for i := range tx.Postings {
+		if !p.isLocalPosting(tx.Postings[i]) {
+			continue
+		}
+		item, reason, reserveErr := p.preparePosting(ctx, tx, i)
+		if reserveErr != nil {
+			p.rollbackEffects(ctx, effects)
+			v := noVote(reason, &tx.Postings[i])
+			noVoteResult = &v
+			break
+		}
+		if item != nil {
+			effects = append(effects, *item)
+		}
+	}
+
+	if noVoteResult != nil {
+		// Mark the record so a future retransmit or ROLLBACK_TX can find it.
+		_ = p.txManager.WithinTransaction(ctx, func(ctx context.Context) error {
+			rec.Status = model.PreparedTransactionRolledBack
+			return p.prepared.Update(ctx, rec)
+		})
+		return http.StatusOK, *noVoteResult, nil
+	}
+
+	// --- Phase 3: confirm ---------------------------------------------------
+	err = p.txManager.WithinTransaction(ctx, func(ctx context.Context) error {
+		rec.Status = model.PreparedTransactionPrepared
+		return p.prepared.Update(ctx, rec)
+	})
+	if err != nil {
+		// Reserves are out but we couldn't confirm. Leave record as PREPARING
+		// so a retransmit of NEW_TX will re-run the (idempotent) reserves and
+		// retry phase 3.
+		return http.StatusInternalServerError, dto.TransactionVote{}, err
+	}
+
+	return http.StatusOK, dto.TransactionVote{Vote: dto.VoteYes}, nil
 }
 
 func (p *MessageProcessor) CommitLocalTransaction(ctx context.Context, txID dto.ForeignBankId) (int, error) {
@@ -177,6 +248,13 @@ func (p *MessageProcessor) CommitLocalTransaction(ctx context.Context, txID dto.
 		if stored.Status == model.PreparedTransactionRolledBack {
 			statusCode = http.StatusInternalServerError
 			return fmt.Errorf("transaction already rolled back")
+		}
+		if stored.Status == model.PreparedTransactionPreparing {
+			// Reservations are not confirmed yet — tell the coordinator to
+			// retransmit later. Committing now would hit NotFound errors on
+			// the un-prepared postings and produce a torn partial commit.
+			statusCode = http.StatusAccepted
+			return nil
 		}
 
 		for i := range tx.Postings {
@@ -219,6 +297,10 @@ func (p *MessageProcessor) RollbackLocalTransaction(ctx context.Context, txID dt
 			statusCode = http.StatusInternalServerError
 			return fmt.Errorf("transaction already committed")
 		}
+		// PREPARING is treated like PREPARED: reserves may be partially out,
+		// so we enumerate the stored body and release each one. rollbackPosting
+		// swallows per-posting errors, so releasing a reservation that was
+		// never issued is safe (banking NotFound / trading idempotent release).
 
 		for i := range tx.Postings {
 			if !p.isLocalPosting(tx.Postings[i]) {
@@ -462,6 +544,9 @@ func (p *MessageProcessor) prepareStockPosting(ctx context.Context, tx *dto.Tran
 		}
 		if contract.Status != model.PeerContractActive {
 			return nil, dto.ReasonOptionUsedOrExpired, fmt.Errorf("option contract is not active")
+		}
+		if settlementPassed(contract.SettlementDate) {
+			return nil, dto.ReasonOptionUsedOrExpired, fmt.Errorf("option contract has expired")
 		}
 		// Shares are already reserved by the accept TX — no new reservation.
 		return nil, "", nil
@@ -915,31 +1000,32 @@ func (p *MessageProcessor) PrepareAndEnqueueNewTx(
 	peerRouting int,
 	idempotenceKey string,
 ) (int, dto.TransactionVote, *model.OutboundMessage, error) {
-	var statusCode int
-	var vote dto.TransactionVote
-	var outMsg *model.OutboundMessage
+	// Phase 1-3: phased prepare manages its own transactions — must NOT be
+	// called inside a wrapping WithinTransaction.
+	statusCode, vote, err := p.PrepareLocalTransaction(ctx, tx)
+	if err != nil {
+		return statusCode, vote, nil, err
+	}
+	if vote.Vote != dto.VoteYes || peerRouting == p.peers.OurRoutingNumber() {
+		return statusCode, vote, nil, nil
+	}
 
-	err := p.txManager.WithinTransaction(ctx, func(ctx context.Context) error {
-		var err error
-		statusCode, vote, err = p.PrepareLocalTransaction(ctx, tx)
-		if err != nil {
-			return err
-		}
-		if vote.Vote != dto.VoteYes || peerRouting == p.peers.OurRoutingNumber() {
-			return nil
-		}
-		payload, err := json.Marshal(dto.NewTxMessage{
-			IdempotenceKey: dto.IdempotenceKey{RoutingNumber: p.peers.OurRoutingNumber(), LocallyGeneratedKey: idempotenceKey},
-			MessageType:    dto.MessageTypeNewTx,
-			Message:        *tx,
-		})
-		if err != nil {
-			return err
-		}
-		outMsg = buildOtcOutboundMessage(peerRouting, dto.MessageTypeNewTx, idempotenceKey, payload)
-		return p.outboundRepo.Enqueue(ctx, outMsg)
+	// Enqueue the outbox row in its own transaction, separate from the prepare
+	// phases above. If this fails the PREPARED record is already committed, so
+	// the outbox row can be re-inserted on retry without leaking reservations.
+	payload, err := json.Marshal(dto.NewTxMessage{
+		IdempotenceKey: dto.IdempotenceKey{RoutingNumber: p.peers.OurRoutingNumber(), LocallyGeneratedKey: idempotenceKey},
+		MessageType:    dto.MessageTypeNewTx,
+		Message:        *tx,
 	})
-	return statusCode, vote, outMsg, err
+	if err != nil {
+		return http.StatusInternalServerError, vote, nil, err
+	}
+	outMsg := buildOtcOutboundMessage(peerRouting, dto.MessageTypeNewTx, idempotenceKey, payload)
+	if err := p.outboundRepo.Enqueue(ctx, outMsg); err != nil {
+		return http.StatusInternalServerError, vote, nil, err
+	}
+	return statusCode, vote, outMsg, nil
 }
 
 // CommitAndEnqueueFollowUp commits the local transaction and, if the peer is
@@ -956,7 +1042,7 @@ func (p *MessageProcessor) CommitAndEnqueueFollowUp(
 	err := p.txManager.WithinTransaction(ctx, func(ctx context.Context) error {
 		var err error
 		statusCode, err = p.CommitLocalTransaction(ctx, txID)
-		if err != nil || peerRouting == p.peers.OurRoutingNumber() {
+		if err != nil {
 			return err
 		}
 		payload, err := json.Marshal(dto.CommitTxMessage{
@@ -988,7 +1074,7 @@ func (p *MessageProcessor) RollbackAndEnqueueFollowUp(
 	err := p.txManager.WithinTransaction(ctx, func(ctx context.Context) error {
 		var err error
 		statusCode, err = p.RollbackLocalTransaction(ctx, txID)
-		if err != nil || peerRouting == p.peers.OurRoutingNumber() {
+		if err != nil {
 			return err
 		}
 		payload, err := json.Marshal(dto.RollbackTxMessage{

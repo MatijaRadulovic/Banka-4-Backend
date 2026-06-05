@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/model"
 )
@@ -12,6 +13,9 @@ import (
 type PeerNegotiationRepository interface {
 	Create(ctx context.Context, n *model.PeerNegotiation) error
 	FindByID(ctx context.Context, id string) (*model.PeerNegotiation, error)
+	FindByIDForUpdate(ctx context.Context, id string) (*model.PeerNegotiation, error)
 	Update(ctx context.Context, n *model.PeerNegotiation) error
 	ListByParty(ctx context.Context, routingNumber int, partyID string) ([]model.PeerNegotiation, error)
+	FindOngoingExpired(ctx context.Context, before time.Time) ([]model.PeerNegotiation, error)
 }
+

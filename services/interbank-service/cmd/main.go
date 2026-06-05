@@ -76,6 +76,7 @@ func main() {
 			service.NewPeerOtcClient,
 
 			job.NewOutboxWorker,
+			job.NewContractExpiryJob,
 
 			handler.NewHealthHandler,
 			handler.NewInterbankHandler,
@@ -99,6 +100,12 @@ func main() {
 			lc.Append(fx.Hook{
 				OnStart: func(_ context.Context) error { worker.Start(); return nil },
 				OnStop:  func(_ context.Context) error { worker.Stop(); return nil },
+			})
+		}),
+		fx.Invoke(func(lc fx.Lifecycle, j *job.ContractExpiryJob) {
+			lc.Append(fx.Hook{
+				OnStart: func(_ context.Context) error { j.Start(); return nil },
+				OnStop:  func(_ context.Context) error { j.Stop(); return nil },
 			})
 		}),
 		fx.Invoke(server.NewServer),

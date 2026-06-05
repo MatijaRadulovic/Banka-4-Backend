@@ -5,6 +5,7 @@ import "time"
 type PreparedTransactionStatus string
 
 const (
+	PreparedTransactionPreparing  PreparedTransactionStatus = "PREPARING"
 	PreparedTransactionPrepared   PreparedTransactionStatus = "PREPARED"
 	PreparedTransactionCommitted  PreparedTransactionStatus = "COMMITTED"
 	PreparedTransactionRolledBack PreparedTransactionStatus = "ROLLED_BACK"

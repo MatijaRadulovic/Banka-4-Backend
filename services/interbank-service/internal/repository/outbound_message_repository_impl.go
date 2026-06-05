@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/RAF-SI-2025/Banka-4-Backend/common/pkg/db"
 	"github.com/RAF-SI-2025/Banka-4-Backend/services/interbank-service/internal/model"
@@ -22,12 +23,16 @@ func (r *outboundMessageRepository) Enqueue(ctx context.Context, m *model.Outbou
 	if m.NextRetryAt.IsZero() {
 		m.NextRetryAt = time.Now()
 	}
-
 	if m.Status == "" {
 		m.Status = model.OutboundPending
 	}
 
-	return db.DBFromContext(ctx, r.db).Create(m).Error
+	return db.DBFromContext(ctx, r.db).
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "idempotence_key_local"}},
+			DoNothing: true,
+		}).
+		Create(m).Error
 }
 
 func (r *outboundMessageRepository) NextBatch(ctx context.Context, limit int) ([]model.OutboundMessage, error) {

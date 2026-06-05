@@ -35,6 +35,7 @@ type PeerOtcService struct {
 	bankingClient client.BankingClient
 	processor     *MessageProcessor
 	outboundRepo  repository.OutboundMessageRepository
+	txManager     repository.TransactionManager
 }
 
 type remoteCommitPendingError struct {
@@ -59,6 +60,7 @@ func NewPeerOtcService(
 	bankingClient client.BankingClient,
 	processor *MessageProcessor,
 	outboundRepo repository.OutboundMessageRepository,
+	txManager repository.TransactionManager,
 ) *PeerOtcService {
 	return &PeerOtcService{
 		negotiations:  negotiations,
@@ -70,6 +72,7 @@ func NewPeerOtcService(
 		bankingClient: bankingClient,
 		processor:     processor,
 		outboundRepo:  outboundRepo,
+		txManager:     txManager,
 	}
 }
 
@@ -159,56 +162,56 @@ func (s *PeerOtcService) UpdateCounter(ctx context.Context, senderRouting, routi
 		return errors.UnauthorizedErr("lastModifiedBy.routingNumber does not match sender")
 	}
 
-	n, err := s.negotiations.FindByID(ctx, id)
-	if err != nil {
-		return errors.InternalErr(err)
-	}
-	if n == nil {
-		return errors.NotFoundErr("negotiation not found")
-	}
+	return s.txManager.WithinTransaction(ctx, func(ctx context.Context) error {
+		n, err := s.negotiations.FindByIDForUpdate(ctx, id)
+		if err != nil {
+			return errors.InternalErr(err)
+		}
+		if n == nil {
+			return errors.NotFoundErr("negotiation not found")
+		}
 
-	if senderRouting != n.BuyerRoutingNumber && senderRouting != n.SellerRoutingNumber {
-		return errors.ForbiddenErr("sender is not a party to this negotiation")
-	}
-	if n.Status != model.PeerNegotiationOngoing {
-		return errors.ConflictErr("negotiation is not ongoing")
-	}
+		if senderRouting != n.BuyerRoutingNumber && senderRouting != n.SellerRoutingNumber {
+			return errors.ForbiddenErr("sender is not a party to this negotiation")
+		}
+		if n.Status != model.PeerNegotiationOngoing {
+			return errors.ConflictErr("negotiation is not ongoing")
+		}
 
-	// Turn enforcement (§3.3): the same party cannot counter twice in a row.
-	if n.LastModifiedByRouting == offer.LastModifiedBy.RoutingNumber &&
-		n.LastModifiedByID == offer.LastModifiedBy.ID {
-		return errors.ConflictErr("turn violation: same party cannot counter twice in a row")
-	}
+		// Turn enforcement (§3.3): the same party cannot counter twice in a row.
+		if n.LastModifiedByRouting == offer.LastModifiedBy.RoutingNumber &&
+			n.LastModifiedByID == offer.LastModifiedBy.ID {
+			return errors.ConflictErr("turn violation: same party cannot counter twice in a row")
+		}
 
-	// Immutable fields.
-	if n.BuyerRoutingNumber != offer.BuyerID.RoutingNumber || n.BuyerID != offer.BuyerID.ID {
-		return errors.BadRequestErr("buyerId cannot change during negotiation")
-	}
-	if n.SellerRoutingNumber != offer.SellerID.RoutingNumber || n.SellerID != offer.SellerID.ID {
-		return errors.BadRequestErr("sellerId cannot change during negotiation")
-	}
-	if n.Ticker != offer.Ticker {
-		return errors.BadRequestErr("ticker cannot change during negotiation")
-	}
-	if n.BuyerAccountNumber != offer.BuyerAccountNumber {
-		return errors.BadRequestErr("buyerAccountNumber cannot change during negotiation")
-	}
+		// Immutable fields.
+		if n.BuyerRoutingNumber != offer.BuyerID.RoutingNumber || n.BuyerID != offer.BuyerID.ID {
+			return errors.BadRequestErr("buyerId cannot change during negotiation")
+		}
+		if n.SellerRoutingNumber != offer.SellerID.RoutingNumber || n.SellerID != offer.SellerID.ID {
+			return errors.BadRequestErr("sellerId cannot change during negotiation")
+		}
+		if n.Ticker != offer.Ticker {
+			return errors.BadRequestErr("ticker cannot change during negotiation")
+		}
+		if n.BuyerAccountNumber != offer.BuyerAccountNumber {
+			return errors.BadRequestErr("buyerAccountNumber cannot change during negotiation")
+		}
 
-	// Apply counter-offer.
-	n.Amount = offer.Amount
-	n.PricePerStock = offer.PricePerStock
-	n.PriceCurrency = offer.PriceCurrency
-	n.Premium = offer.Premium
-	n.PremiumCurrency = offer.PremiumCurrency
-	n.SettlementDate = offer.SettlementDate
-	n.LastModifiedByRouting = offer.LastModifiedBy.RoutingNumber
-	n.LastModifiedByID = offer.LastModifiedBy.ID
+		n.Amount = offer.Amount
+		n.PricePerStock = offer.PricePerStock
+		n.PriceCurrency = offer.PriceCurrency
+		n.Premium = offer.Premium
+		n.PremiumCurrency = offer.PremiumCurrency
+		n.SettlementDate = offer.SettlementDate
+		n.LastModifiedByRouting = offer.LastModifiedBy.RoutingNumber
+		n.LastModifiedByID = offer.LastModifiedBy.ID
 
-	if err := s.negotiations.Update(ctx, n); err != nil {
-		return errors.InternalErr(err)
-	}
-
-	return nil
+		if err := s.negotiations.Update(ctx, n); err != nil {
+			return errors.InternalErr(err)
+		}
+		return nil
+	})
 }
 
 // Close handles §3.5 DELETE /interbank/negotiations/:rn/:id — either party
@@ -219,29 +222,30 @@ func (s *PeerOtcService) Close(ctx context.Context, senderRouting, routingNumber
 		return errors.BadRequestErr("routingNumber does not match this bank")
 	}
 
-	n, err := s.negotiations.FindByID(ctx, id)
-	if err != nil {
-		return errors.InternalErr(err)
-	}
-	if n == nil {
-		return errors.NotFoundErr("negotiation not found")
-	}
+	return s.txManager.WithinTransaction(ctx, func(ctx context.Context) error {
+		n, err := s.negotiations.FindByIDForUpdate(ctx, id)
+		if err != nil {
+			return errors.InternalErr(err)
+		}
+		if n == nil {
+			return errors.NotFoundErr("negotiation not found")
+		}
 
-	if senderRouting != n.BuyerRoutingNumber && senderRouting != n.SellerRoutingNumber {
-		return errors.ForbiddenErr("sender is not a party to this negotiation")
-	}
+		if senderRouting != n.BuyerRoutingNumber && senderRouting != n.SellerRoutingNumber {
+			return errors.ForbiddenErr("sender is not a party to this negotiation")
+		}
 
-	// Idempotent: leave already-closed negotiations alone.
-	if n.Status != model.PeerNegotiationOngoing {
+		// Idempotent: leave already-closed negotiations alone.
+		if n.Status != model.PeerNegotiationOngoing {
+			return nil
+		}
+
+		n.Status = model.PeerNegotiationCancelled
+		if err := s.negotiations.Update(ctx, n); err != nil {
+			return errors.InternalErr(err)
+		}
 		return nil
-	}
-
-	n.Status = model.PeerNegotiationCancelled
-	if err := s.negotiations.Update(ctx, n); err != nil {
-		return errors.InternalErr(err)
-	}
-
-	return nil
+	})
 }
 
 func (s *PeerOtcService) validateOffer(o dto.OtcOffer) error {
@@ -514,21 +518,31 @@ func (s *PeerOtcService) AcceptFromPeer(ctx context.Context, senderRouting, rout
 		return nil, errors.BadRequestErr("routingNumber does not match this bank")
 	}
 
-	n, err := s.negotiations.FindByID(ctx, id)
-	if err != nil {
-		return nil, errors.InternalErr(err)
-	}
-	if n == nil {
-		return nil, errors.NotFoundErr("negotiation not found")
-	}
-	if senderRouting != n.BuyerRoutingNumber && senderRouting != n.SellerRoutingNumber {
-		return nil, errors.ForbiddenErr("sender is not a party to this negotiation")
-	}
-	if n.Status != model.PeerNegotiationOngoing && n.Status != model.PeerNegotiationAccepted {
-		return nil, errors.ConflictErr("negotiation is not ongoing")
-	}
-	if n.Status == model.PeerNegotiationOngoing && n.LastModifiedByRouting == senderRouting {
-		return nil, errors.ConflictErr("acceptor must be opposite to lastModifiedBy")
+	// Lock the negotiation row so concurrent accepts serialize. The contract
+	// existence check must be inside the lock to prevent two callers both
+	// seeing nil and both launching the 2PC.
+	var n *model.PeerNegotiation
+	if err := s.txManager.WithinTransaction(ctx, func(ctx context.Context) error {
+		locked, err := s.negotiations.FindByIDForUpdate(ctx, id)
+		if err != nil {
+			return errors.InternalErr(err)
+		}
+		if locked == nil {
+			return errors.NotFoundErr("negotiation not found")
+		}
+		if senderRouting != locked.BuyerRoutingNumber && senderRouting != locked.SellerRoutingNumber {
+			return errors.ForbiddenErr("sender is not a party to this negotiation")
+		}
+		if locked.Status != model.PeerNegotiationOngoing && locked.Status != model.PeerNegotiationAccepted {
+			return errors.ConflictErr("negotiation is not ongoing")
+		}
+		if locked.Status == model.PeerNegotiationOngoing && locked.LastModifiedByRouting == senderRouting {
+			return errors.ConflictErr("acceptor must be opposite to lastModifiedBy")
+		}
+		n = locked
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 
 	existing, err := s.contracts.FindByID(ctx, n.SellerRoutingNumber, n.ID)
@@ -557,55 +571,33 @@ func (s *PeerOtcService) AcceptAsLocal(ctx context.Context, localUserID uint, ne
 	userIDStr := strconv.FormatUint(uint64(localUserID), 10)
 	ourRouting := s.peers.OurRoutingNumber()
 
+	var n *model.PeerNegotiation
 	if negotiationID.RoutingNumber == ourRouting {
-		n, err := s.negotiations.FindByID(ctx, negotiationID.ID)
+		var err error
+		n, err = s.negotiations.FindByID(ctx, negotiationID.ID)
 		if err != nil {
 			return nil, errors.InternalErr(err)
 		}
 		if n == nil {
 			return nil, errors.NotFoundErr("negotiation not found")
 		}
-		isOurBuyer := n.BuyerRoutingNumber == ourRouting && n.BuyerID == userIDStr
-		isOurSeller := n.SellerRoutingNumber == ourRouting && n.SellerID == userIDStr
-		if !isOurBuyer && !isOurSeller {
-			return nil, errors.ForbiddenErr("local user is not a party to this negotiation")
-		}
-		if n.Status != model.PeerNegotiationOngoing && n.Status != model.PeerNegotiationAccepted {
-			return nil, errors.ConflictErr("negotiation is not ongoing")
-		}
-		if n.Status == model.PeerNegotiationOngoing && n.LastModifiedByRouting == ourRouting && n.LastModifiedByID == userIDStr {
-			return nil, errors.ConflictErr("you cannot accept your own latest offer")
-		}
-
-		// Relay to the other party's bank — they coordinate the 2PC.
-		peerRN := n.BuyerRoutingNumber
-		if peerRN == ourRouting {
-			peerRN = n.SellerRoutingNumber
-		}
-		if _, err := s.client.Accept(ctx, dto.ForeignBankId{RoutingNumber: peerRN, ID: n.ID}); err != nil {
+	} else {
+		var err error
+		n, err = s.findLocalMirrorByRemote(ctx, negotiationID, localUserID)
+		if err != nil {
 			return nil, err
 		}
-
-		// We participated in the 2PC as a party; the contract now exists locally.
-		contract, err := s.contracts.FindByID(ctx, n.SellerRoutingNumber, n.ID)
-		if err != nil {
-			return nil, errors.InternalErr(err)
-		}
-		if contract == nil {
-			return nil, errors.InternalErr(fmt.Errorf("contract not created after accept"))
-		}
-		return toPeerContractDTO(contract), nil
 	}
 
-	mirror, err := s.findLocalMirrorByRemote(ctx, negotiationID, localUserID)
-	if err != nil {
-		return nil, err
+	isOurBuyer := n.BuyerRoutingNumber == ourRouting && n.BuyerID == userIDStr
+	isOurSeller := n.SellerRoutingNumber == ourRouting && n.SellerID == userIDStr
+	if !isOurBuyer && !isOurSeller {
+		return nil, errors.ForbiddenErr("local user is not a party to this negotiation")
 	}
-	if mirror.Status != model.PeerNegotiationOngoing && mirror.Status != model.PeerNegotiationAccepted {
+	if n.Status != model.PeerNegotiationOngoing && n.Status != model.PeerNegotiationAccepted {
 		return nil, errors.ConflictErr("negotiation is not ongoing")
 	}
-	if mirror.Status == model.PeerNegotiationOngoing &&
-		mirror.LastModifiedByRouting == ourRouting && mirror.LastModifiedByID == userIDStr {
+	if n.Status == model.PeerNegotiationOngoing && n.LastModifiedByRouting == ourRouting && n.LastModifiedByID == userIDStr {
 		return nil, errors.ConflictErr("you cannot accept your own latest offer")
 	}
 
@@ -617,8 +609,14 @@ func (s *PeerOtcService) AcceptAsLocal(ctx context.Context, localUserID uint, ne
 		return toPeerContractDTO(existing), nil
 	}
 
-	if _, err := s.client.Accept(ctx, negotiationID); err != nil {
-		return nil, err
+	if negotiationID.RoutingNumber == ourRouting {
+		if err := s.coordinateAcceptTransaction(ctx, n); err != nil {
+			return nil, err
+		}
+	} else {
+		if _, err := s.client.Accept(ctx, negotiationID); err != nil {
+			return nil, err
+		}
 	}
 
 	contract, err := s.contracts.FindByID(ctx, negotiationID.RoutingNumber, negotiationID.ID)
@@ -660,6 +658,9 @@ func (s *PeerOtcService) ExerciseAsLocal(ctx context.Context, localUserID uint, 
 	}
 	if contract.Status != model.PeerContractActive {
 		return nil, errors.ConflictErr("contract is not active")
+	}
+	if settlementPassed(contract.SettlementDate) {
+		return nil, errors.ConflictErr("option contract has expired")
 	}
 	if strings.TrimSpace(buyerAccountNumber) == "" {
 		return nil, errors.BadRequestErr("buyerAccountNumber is required to exercise")
@@ -932,13 +933,13 @@ func (s *PeerOtcService) coordinateTwoBankTransaction(ctx context.Context, peerR
 	_ = s.outboundRepo.MarkSent(ctx, newTxMsg.ID, http.StatusOK, nil)
 
 	if remoteVote == nil || remoteVote.Vote != dto.VoteYes {
-		// Step 3a: peer voted NO — rollback + enqueue ROLLBACK_TX atomically; try sync send.
-		rollbackKey := keyPrefix + "-rollback"
-		_, rollbackMsg, _ := s.processor.RollbackAndEnqueueFollowUp(ctx, tx.TransactionID, peerRouting, rollbackKey)
-		if rollbackMsg != nil {
-			if err := s.client.SendRollbackTx(ctx, peerRouting, rollbackKey, tx.TransactionID); err == nil {
-				_ = s.outboundRepo.MarkSent(ctx, rollbackMsg.ID, http.StatusNoContent, nil)
-			}
+		// Step 3a: peer voted NO — the peer never prepared, so it has no
+		// PreparedTransaction to roll back. Sending ROLLBACK_TX would get a 500
+		// and exhaust retries pointlessly. Just roll back our own side directly
+		// and cancel the now-redundant NEW_TX outbox row.
+		_, _ = s.processor.RollbackLocalTransaction(ctx, tx.TransactionID)
+		if newTxMsg != nil {
+			_ = s.outboundRepo.Cancel(ctx, newTxMsg.ID)
 		}
 		return errors.ConflictErr(fmt.Sprintf("peer bank voted NO: %s", voteReasonsValue(remoteVote)))
 	}
@@ -981,5 +982,17 @@ func voteReasonsValue(vote *dto.TransactionVote) string {
 		return "no vote returned"
 	}
 	return voteReasons(*vote)
+}
+
+// settlementPassed returns true when the settlement date string (ISO 8601
+// date or datetime) represents a point in time that has already passed.
+func settlementPassed(settlementDate string) bool {
+	if t, err := time.Parse(time.RFC3339, settlementDate); err == nil {
+		return time.Now().After(t)
+	}
+	if t, err := time.Parse("2006-01-02", settlementDate); err == nil {
+		return time.Now().After(t.Add(24 * time.Hour))
+	}
+	return false
 }
 
