@@ -261,16 +261,12 @@ func (w *OutboxWorker) handleOtcNewTxVote(ctx context.Context, msg *model.Outbou
 			}
 		}
 	} else {
-		rollbackKey := msg.IdempotenceKeyLocal + "-rollback"
-		_, rollbackMsg, err := w.messageProcessor.RollbackAndEnqueueFollowUp(ctx, txID, msg.PeerRoutingNumber, rollbackKey)
-		if err != nil {
-			zap.L().Error("outbox: OTC RollbackAndEnqueueFollowUp failed", zap.String("txID", txID.ID), zap.Error(err))
-			return
-		}
-		if rollbackMsg != nil {
-			if err := w.peerClient.SendRollbackTx(ctx, msg.PeerRoutingNumber, rollbackKey, txID); err == nil {
-				_ = w.outboundMessageRepo.MarkSent(ctx, rollbackMsg.ID, http.StatusNoContent, nil)
-			}
+		// Peer voted NO — it never prepared, so it holds no reservations and has
+		// nothing to roll back. Mirror the synchronous coordinator path: release
+		// our own side locally and do NOT send a pointless ROLLBACK_TX (which the
+		// peer would answer with a no-op anyway).
+		if _, err := w.messageProcessor.RollbackLocalTransaction(ctx, txID); err != nil {
+			zap.L().Error("outbox: OTC local rollback after peer NO failed", zap.String("txID", txID.ID), zap.Error(err))
 		}
 	}
 }

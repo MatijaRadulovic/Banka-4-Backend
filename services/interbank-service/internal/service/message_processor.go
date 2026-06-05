@@ -286,8 +286,15 @@ func (p *MessageProcessor) RollbackLocalTransaction(ctx context.Context, txID dt
 			return err
 		}
 		if stored == nil {
-			statusCode = http.StatusInternalServerError
-			return fmt.Errorf("transaction not found")
+			// Nothing to roll back: either the NEW_TX never reached us (e.g. the
+			// coordinator voted NO on its own side and never prepared here) or it
+			// failed before a PreparedTransaction row was written (e.g. an
+			// unbalanced tx is rejected before Phase 1). Treat ROLLBACK of an
+			// unknown transaction as a successful no-op so the coordinator's
+			// rollback is robustly idempotent and never wedges in a pointless
+			// retry loop against a 500.
+			statusCode = http.StatusNoContent
+			return nil
 		}
 		if stored.Status == model.PreparedTransactionRolledBack {
 			statusCode = http.StatusNoContent
@@ -393,6 +400,11 @@ func (p *MessageProcessor) processInbound(
 
 // ---------------------------------------------------------------------------
 // preparePosting dispatches by asset type.
+//
+// Sign convention (§2.8): a NEGATIVE amount is a CREDIT (the asset leaves the
+// account) and a POSITIVE amount is a DEBIT (the asset enters the account).
+// Per §2.8.4 only credited accounts (negative amounts) have assets reserved
+// during prepare; debited accounts (positive amounts) only need validation.
 // ---------------------------------------------------------------------------
 
 func (p *MessageProcessor) preparePosting(ctx context.Context, tx *dto.Transaction, index int) (*preparedItem, dto.NoVoteReasonKind, error) {
@@ -494,11 +506,12 @@ func (p *MessageProcessor) prepareOptionPosting(ctx context.Context, tx *dto.Tra
 		return nil, dto.ReasonNoSuchAccount, fmt.Errorf("invalid option account")
 	}
 	if posting.Amount > 0 {
-		// Buyer CREDIT — no reservation needed.
+		// Buyer side (DEBIT, amount > 0): receiving the option — nothing to reserve.
 		return nil, "", nil
 	}
 
-	// Seller DEBIT — reserve shares.
+	// Seller side (CREDIT, amount < 0): giving the option — reserve the shares
+	// that back the contract so it can be exercised before settlement.
 	option, ok := optionDescription(posting.Asset)
 	if !ok {
 		return nil, dto.ReasonUnacceptableAsset, fmt.Errorf("invalid OPTION asset")
@@ -530,7 +543,9 @@ func (p *MessageProcessor) prepareStockPosting(ctx context.Context, tx *dto.Tran
 	posting := tx.Postings[index]
 
 	if posting.Amount < 0 {
-		// Seller DEBIT via OPTION account: validate contract is still active.
+		// Seller side (CREDIT, amount < 0) via the OPTION pseudo-account:
+		// validate the contract is still active. The shares were already
+		// reserved by the accept TX, so no new reservation is taken here.
 		isValid, negotiationID := p.localOptionAccount(posting.Account)
 		if !isValid {
 			return nil, dto.ReasonNoSuchAccount, fmt.Errorf("invalid option account for stock debit")
@@ -552,7 +567,8 @@ func (p *MessageProcessor) prepareStockPosting(ctx context.Context, tx *dto.Tran
 		return nil, "", nil
 	}
 
-	// Buyer CREDIT via PERSON account — no preparation needed.
+	// Buyer side (DEBIT, amount > 0) via PERSON account — receiving the shares,
+	// no preparation needed.
 	return nil, "", nil
 }
 

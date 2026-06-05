@@ -58,9 +58,12 @@ type PeerNegotiation struct {
 	Status          PeerNegotiationStatus `gorm:"not null;size:16;column:status"`
 	IsAuthoritative bool                  `gorm:"not null;column:is_authoritative"`
 
-	// Version is GORM's optimistic-locking column. Concurrent counter-offers
-	// from the same peer are rejected at the DB layer rather than via
-	// application-level locks.
+	// Version is a reserved counter column. NOTE: plain GORM does not treat a
+	// field named Version as an optimistic-lock column (that needs the
+	// gorm.io/plugin/optimisticlock type), so this field is currently inert and
+	// never incremented. Concurrent counter-offers are actually serialized via
+	// FindByIDForUpdate (SELECT ... FOR UPDATE) inside UpdateCounter, which is
+	// sufficient. Kept for a future migration to real optimistic locking.
 	Version uint `gorm:"not null;default:0;column:version"`
 
 	CreatedAt time.Time

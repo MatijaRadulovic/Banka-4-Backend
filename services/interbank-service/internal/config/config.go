@@ -31,6 +31,7 @@ type URLConfig struct {
 type Configuration struct {
 	Env                string
 	Port               string
+	GrpcPort           string
 	DB                 DBConfig
 	URLs               URLConfig
 	OurRoutingNumber   int
@@ -92,6 +93,7 @@ func Load() *Configuration {
 	return &Configuration{
 		Env:                getOrDefault("ENV", "development"),
 		Port:               getOrDefault("PORT", "8083"),
+		GrpcPort:           getOrDefault("GRPC_PORT", "50054"),
 		OurRoutingNumber:   getIntOrDefault("INTERBANK_ROUTING_NUMBER", 444),
 		PeersConfigPath:    getOrDefault("INTERBANK_PEERS_CONFIG_PATH", "./peers.yaml"),
 		OutboundHTTPTO:     getDurationOrDefault("INTERBANK_OUTBOUND_HTTP_TIMEOUT", 10*time.Second),

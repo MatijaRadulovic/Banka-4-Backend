@@ -518,9 +518,13 @@ func (s *PeerOtcService) AcceptFromPeer(ctx context.Context, senderRouting, rout
 		return nil, errors.BadRequestErr("routingNumber does not match this bank")
 	}
 
-	// Lock the negotiation row so concurrent accepts serialize. The contract
-	// existence check must be inside the lock to prevent two callers both
-	// seeing nil and both launching the 2PC.
+	// Lock the negotiation row so concurrent accepts serialize on its status.
+	// The contract-existence fast-path below runs after the lock is released;
+	// true dedup of concurrent accepts is guaranteed by the deterministic accept
+	// transaction id (peer-otc-accept-<seller>-<id>) — PrepareLocalTransaction
+	// short-circuits on the existing PreparedTransaction row, and the contract's
+	// composite primary key rejects a duplicate insert — so a second concurrent
+	// accept cannot double-charge the premium or double-reserve shares.
 	var n *model.PeerNegotiation
 	if err := s.txManager.WithinTransaction(ctx, func(ctx context.Context) error {
 		locked, err := s.negotiations.FindByIDForUpdate(ctx, id)
@@ -831,26 +835,28 @@ func (s *PeerOtcService) acceptTransaction(n *model.PeerNegotiation) dto.Transac
 		Message:        "Peer OTC option premium and contract acceptance",
 		PaymentCode:    "289",
 		PaymentPurpose: "OTC option premium",
+		// §3.6 accept postings. Sign convention (§2.8): amount < 0 is a CREDIT
+		// (asset leaves the account), amount > 0 is a DEBIT (asset enters).
 		Postings: []dto.Posting{
-			// posting 1: buyer ACCOUNT MONAS DEBIT — premium payment
+			// posting 1: buyer ACCOUNT MONAS CREDIT (amount < 0) — buyer pays the premium
 			{
 				Account: dto.TxAccount{Type: dto.TxAccountAccount, Num: &[]string{n.BuyerAccountNumber}[0]},
 				Amount:  -n.Premium,
 				Asset:   monasAsset,
 			},
-			// posting 2: seller PERSON MONAS CREDIT — resolved by ClientId on seller's bank
+			// posting 2: seller PERSON MONAS DEBIT (amount > 0) — seller receives the premium (resolved by ClientId on seller's bank)
 			{
 				Account: personAccount(n.SellerRoutingNumber, n.SellerID),
 				Amount:  n.Premium,
 				Asset:   monasAsset,
 			},
-			// posting 3: seller PERSON OPTION DEBIT — seller gives option
+			// posting 3: seller PERSON OPTION CREDIT (amount < 0) — seller gives the option (shares reserved)
 			{
 				Account: personAccount(n.SellerRoutingNumber, n.SellerID),
 				Amount:  -1,
 				Asset:   optionAsset,
 			},
-			// posting 4: buyer PERSON OPTION CREDIT — buyer receives option
+			// posting 4: buyer PERSON OPTION DEBIT (amount > 0) — buyer receives the option
 			{
 				Account: personAccount(n.BuyerRoutingNumber, n.BuyerID),
 				Amount:  1,
@@ -874,26 +880,28 @@ func (s *PeerOtcService) exerciseTransaction(contract *model.PeerContract, buyer
 		Message:        "Peer OTC option exercise",
 		PaymentCode:    "289",
 		PaymentPurpose: "OTC option exercise",
+		// §2.7.2 option-execution postings. Sign convention (§2.8): amount < 0 is
+		// a CREDIT (asset leaves the account), amount > 0 is a DEBIT (asset enters).
 		Postings: []dto.Posting{
-			// posting 1: buyer ACCOUNT MONAS DEBIT — strike payment
+			// posting 1: buyer ACCOUNT MONAS CREDIT (amount < 0) — buyer pays π·k strike
 			{
 				Account: dto.TxAccount{Type: dto.TxAccountAccount, Num: &[]string{buyerAccountNumber}[0]},
 				Amount:  -amount,
 				Asset:   monasAsset,
 			},
-			// posting 2: option OPTION MONAS CREDIT — seller receives strike via pseudo-account
+			// posting 2: option OPTION MONAS DEBIT (amount > 0) — strike paid into the pseudo-account (forwarded to seller on commit)
 			{
 				Account: dto.TxAccount{Type: dto.TxAccountOption, ID: &contractID},
 				Amount:  amount,
 				Asset:   monasAsset,
 			},
-			// posting 3: option OPTION STOCK DEBIT — seller's reserved shares released
+			// posting 3: option OPTION STOCK CREDIT (amount < 0) — reserved shares leave the pseudo-account
 			{
 				Account: dto.TxAccount{Type: dto.TxAccountOption, ID: &contractID},
 				Amount:  -float64(contract.Amount),
 				Asset:   stockAsset,
 			},
-			// posting 4: buyer PERSON STOCK CREDIT — buyer receives shares
+			// posting 4: buyer PERSON STOCK DEBIT (amount > 0) — buyer receives k shares
 			{
 				Account: personAccount(contract.BuyerRoutingNumber, contract.BuyerID),
 				Amount:  float64(contract.Amount),
