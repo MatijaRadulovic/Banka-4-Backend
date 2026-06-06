@@ -380,7 +380,7 @@ type LocalExerciseRequest struct {
 // peer in the registry. Peers that fail are skipped silently; partial
 // results are returned so a single unreachable peer doesn't tank the page.
 func (s *PeerOtcService) ListAllPeerPublicStocks(ctx context.Context) ([]dto.PublicStock, error) {
-	var out []dto.PublicStock
+	out := make([]dto.PublicStock, 0)
 	for _, peer := range s.peers.All() {
 		stocks, err := s.client.PublicStock(ctx, peer.RoutingNumber)
 		if err != nil {

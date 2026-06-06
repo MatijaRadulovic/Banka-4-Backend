@@ -286,6 +286,13 @@ func (s *BankingService) RollbackInterbankCashPosting(ctx context.Context, req *
 	return interbankCashPostingResponse(posting), nil
 }
 
+func (s *BankingService) FinalizeInterbankPayment(ctx context.Context, req *pb.FinalizeInterbankPaymentRequest) (*pb.FinalizeInterbankPaymentResponse, error) {
+	if err := s.paymentService.FinalizeInterbankPayment(ctx, uint(req.GetBankingTxId()), req.GetSuccess()); err != nil {
+		return nil, errors.MapGrpcToHttpError(err)
+	}
+	return &pb.FinalizeInterbankPaymentResponse{}, nil
+}
+
 func interbankCashPostingResponse(posting *model.InterbankCashPosting) *pb.InterbankCashPostingResponse {
 	if posting == nil {
 		return nil
