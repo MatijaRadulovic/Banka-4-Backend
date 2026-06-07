@@ -103,7 +103,7 @@ func (c *PeerOtcClient) SendNewTx(ctx context.Context, peerRouting int, key stri
 	}
 
 	var vote dto.TransactionVote
-	if err := c.do(ctx, peerRouting, http.MethodPost, "/api/interbank", msg, &vote); err != nil {
+	if err := c.do(ctx, peerRouting, http.MethodPost, "/interbank", msg, &vote); err != nil {
 		return nil, err
 	}
 	return &vote, nil
@@ -118,7 +118,7 @@ func (c *PeerOtcClient) SendCommitTx(ctx context.Context, peerRouting int, key s
 		MessageType: dto.MessageTypeCommitTx,
 		Message:     dto.CommitTransaction{TransactionID: txID},
 	}
-	return c.do(ctx, peerRouting, http.MethodPost, "/api/interbank", msg, nil)
+	return c.do(ctx, peerRouting, http.MethodPost, "/interbank", msg, nil)
 }
 
 func (c *PeerOtcClient) SendRollbackTx(ctx context.Context, peerRouting int, key string, txID dto.ForeignBankId) error {
@@ -130,7 +130,7 @@ func (c *PeerOtcClient) SendRollbackTx(ctx context.Context, peerRouting int, key
 		MessageType: dto.MessageTypeRollbackTx,
 		Message:     dto.RollbackTransaction{TransactionID: txID},
 	}
-	return c.do(ctx, peerRouting, http.MethodPost, "/api/interbank", msg, nil)
+	return c.do(ctx, peerRouting, http.MethodPost, "/interbank", msg, nil)
 }
 
 func (c *PeerOtcClient) PublicStock(ctx context.Context, peerRouting int) ([]dto.PublicStock, error) {
