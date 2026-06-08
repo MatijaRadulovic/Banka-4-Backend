@@ -82,7 +82,7 @@ services:
       USER_SERVICE_ADDR: user_service:50051
       USER_SERVICE_BASE_URL: http://user_service:${PORT}
       BANKING_SERVICE_ADDR: banking_service:50052
-      EMAIL_SERVICE_ADDR: email_service:50054
+      EMAIL_SERVICE_ADDR: email_service:50055
     depends_on:
       user_service_db:
         condition: service_healthy
