@@ -33,7 +33,7 @@ func (r *listingRepository) FindByID(ctx context.Context, id uint, daysBack int)
 		Preload("Stock").
 		Preload("DailyPriceInfos", func(db *gorm.DB) *gorm.DB {
 			q := db.Order("date ASC")
-			if daysBack >= 0 {
+			if daysBack > 0 {
 				now := time.Now().UTC()
 				since := time.Date(
 					now.Year(), now.Month(), now.Day(),
