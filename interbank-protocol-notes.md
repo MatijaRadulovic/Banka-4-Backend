@@ -8,7 +8,10 @@
 |---|---|
 | Routing number | `444` |
 | Interbank base URL | `http://rafsi.davidovic.io:8083` |
+| Interbank base URL (Kubernetes, alternative) | `https://banka-4.radenko.rs/interbank-service` |
 | API key (send in `X-Api-Key`) | `bank4-secret-key` |
+
+Both base URLs point at the same bank (routing `444`) and use the same `X-Api-Key`; either may be used.
 
 ### Interbank endpoints
 
@@ -84,6 +87,15 @@ Counter-offer `PUT` must include all fields (including immutable ones echoed bac
 
 Triggered by `GET /negotiations/{sellerRn}/{id}/accept`. Moves the premium and forms the option contract.
 
+### Forwarding
+
+The accepting bank **never** forms the transaction itself. When a party accepts the current offer, its bank sends `GET /negotiations/{sellerRn}/{id}/accept` to the **other party's bank** (the counterparty), and that receiving bank forms the NEW_TX below.
+
+- Buyer accepts → buyer's bank calls the **seller's** bank → seller's bank forms the TX.
+- Seller accepts → seller's bank calls the **buyer's** bank → buyer's bank forms the TX.
+
+`{sellerRn}/{id}` in the path is **always the seller's routing number and the negotiation id the seller generated on creation**. It identifies the negotiation and is shared unchanged by both banks — regardless of who is accepting or which bank receives the request. It is *not* the destination: the request is always sent to the counterparty, while the path keeps the seller's `{rn}/{id}` so both sides resolve the same negotiation.
+
 **Sign:** `amount < 0` = asset leaves (credit out), `amount > 0` = asset enters (debit in).
 
 | # | Account | Amount | Asset | Why this account type |
@@ -129,7 +141,7 @@ Triggered by `GET /negotiations/{sellerRn}/{id}/accept`. Moves the premium and f
 }
 ```
 
-**On COMMIT:** seller's bank creates a `PeerContract` and reserves the seller's shares.
+**On COMMIT:** seller's bank creates a `PeerContract` and reserves the seller's shares, same is done on buyers side where mirroring contract is created.
 
 ---
 
