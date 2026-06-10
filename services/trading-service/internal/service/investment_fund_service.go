@@ -1145,6 +1145,39 @@ func (s *InvestmentFundService) GetFundDetail(ctx context.Context, fundID uint) 
 	}, nil
 }
 
+func (s *InvestmentFundService) DeleteFund(ctx context.Context, fundID uint) error {
+	authCtx := auth.GetAuthFromContext(ctx)
+	if authCtx == nil {
+		return commonErrors.UnauthorizedErr("not authenticated")
+	}
+
+	if authCtx.IdentityType != auth.IdentityEmployee {
+		return commonErrors.ForbiddenErr("only employees can delete investment funds")
+	}
+
+	fund, err := s.fundRepo.FindByID(ctx, fundID)
+	if err != nil {
+		return commonErrors.InternalErr(err)
+	}
+	if fund == nil {
+		return commonErrors.NotFoundErr("investment fund not found")
+	}
+
+	positions, err := s.positionRepo.FindByFund(ctx, fundID)
+	if err != nil {
+		return commonErrors.InternalErr(err)
+	}
+	if len(positions) > 0 {
+		return commonErrors.ConflictErr("cannot delete fund with active client positions")
+	}
+
+	if err := s.fundRepo.Delete(ctx, fundID); err != nil {
+		return commonErrors.InternalErr(err)
+	}
+
+	return nil
+}
+
 func (s *InvestmentFundService) TransferFunds(ctx context.Context, fromManagerID uint, toManagerID uint) (int, error) {
 	count, err := s.fundRepo.UpdateManagerID(ctx, fromManagerID, toManagerID)
 	if err != nil {

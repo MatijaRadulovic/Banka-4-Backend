@@ -139,6 +139,10 @@ func (r *investmentFundRepository) UpdateManagerID(ctx context.Context, fromMana
 	return result.RowsAffected, result.Error
 }
 
+func (r *investmentFundRepository) Delete(ctx context.Context, id uint) error {
+	return r.db.WithContext(ctx).Delete(&model.InvestmentFund{}, id).Error
+}
+
 func (r *investmentFundRepository) GetAllPerformanceHistories(ctx context.Context, minSnapshots int) (map[uint][]model.FundPerformance, error) {
 	var histories []model.FundPerformance
 	err := r.db.WithContext(ctx).

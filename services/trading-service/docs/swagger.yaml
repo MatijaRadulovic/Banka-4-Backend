@@ -2187,6 +2187,49 @@ paths:
       tags:
       - investment-funds
   /api/investment-funds/{fundId}:
+    delete:
+      description: Deletes an investment fund by ID. Only supervisors can delete funds.
+        Fails if the fund has active client positions.
+      parameters:
+      - description: Fund ID
+        in: path
+        name: fundId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errors.AppError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/errors.AppError'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/errors.AppError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Delete an investment fund
+      tags:
+      - investment-funds
     get:
       consumes:
       - application/json

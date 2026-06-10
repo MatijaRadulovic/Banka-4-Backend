@@ -42,6 +42,8 @@ type fakeFundRepo struct {
 	updateManagerIDResult int64
 	updateManagerIDErr    error
 
+	deleteErr error
+
 	savedPerformances []*model.FundPerformance
 
 	getAllPerformanceHistoriesResult map[uint][]model.FundPerformance
@@ -96,6 +98,10 @@ func (f *fakeFundRepo) SavePerformanceSnapshot(ctx context.Context, perf *model.
 
 func (f *fakeFundRepo) UpdateManagerID(ctx context.Context, fromManagerID uint, toManagerID uint) (int64, error) {
 	return f.updateManagerIDResult, f.updateManagerIDErr
+}
+
+func (f *fakeFundRepo) Delete(ctx context.Context, id uint) error {
+	return f.deleteErr
 }
 
 func (f *fakeFundRepo) GetAllPerformanceHistories(ctx context.Context, minSnapshots int) (map[uint][]model.FundPerformance, error) {
@@ -2154,4 +2160,79 @@ func TestApplyRedemptionToPosition_MultiplePartialRedemptionsPreserveProportiona
 
 	avgCostPerUnit := position.TotalInvestedAmount / position.UnitsOwned
 	require.InDelta(t, 1.0, avgCostPerUnit, 0.0001)
+}
+
+func TestDeleteFund_Success(t *testing.T) {
+	fund := &model.InvestmentFund{FundID: 1, Name: "To Delete", AccountNumber: "ACC-DEL"}
+	fundRepo := &fakeFundRepo{findByIDResult: fund}
+	positionRepo := &fakePositionRepo{findByFundRes: []model.ClientFundPosition{}}
+	svc := NewInvestmentFundService(fundRepo, positionRepo, &fakeListingRepo{}, &fakeInvestmentRepo{}, &fakeRedemptionRepo{}, &fakeAssetOwnershipRepo{}, &fakeExchangeRepo{}, &fakeStockRepo{}, &fakeOptionRepo{}, &fakeFuturesRepo{}, &fakeForexRepo{}, &fakeFundBankingClient{}, &fakeFundUserClient{}, nil)
+
+	err := svc.DeleteFund(fundSupervisorCtx(), 1)
+
+	require.NoError(t, err)
+}
+
+func TestDeleteFund_Unauthenticated(t *testing.T) {
+	svc := NewInvestmentFundService(&fakeFundRepo{}, &fakePositionRepo{}, &fakeListingRepo{}, &fakeInvestmentRepo{}, &fakeRedemptionRepo{}, &fakeAssetOwnershipRepo{}, &fakeExchangeRepo{}, &fakeStockRepo{}, &fakeOptionRepo{}, &fakeFuturesRepo{}, &fakeForexRepo{}, &fakeFundBankingClient{}, &fakeFundUserClient{}, nil)
+
+	err := svc.DeleteFund(context.Background(), 1)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "not authenticated")
+}
+
+func TestDeleteFund_NotEmployee(t *testing.T) {
+	svc := NewInvestmentFundService(&fakeFundRepo{}, &fakePositionRepo{}, &fakeListingRepo{}, &fakeInvestmentRepo{}, &fakeRedemptionRepo{}, &fakeAssetOwnershipRepo{}, &fakeExchangeRepo{}, &fakeStockRepo{}, &fakeOptionRepo{}, &fakeFuturesRepo{}, &fakeForexRepo{}, &fakeFundBankingClient{}, &fakeFundUserClient{}, nil)
+
+	err := svc.DeleteFund(fundClientCtx(), 1)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "only employees")
+}
+
+func TestDeleteFund_NotFound(t *testing.T) {
+	fundRepo := &fakeFundRepo{findByIDResult: nil}
+	svc := NewInvestmentFundService(fundRepo, &fakePositionRepo{}, &fakeListingRepo{}, &fakeInvestmentRepo{}, &fakeRedemptionRepo{}, &fakeAssetOwnershipRepo{}, &fakeExchangeRepo{}, &fakeStockRepo{}, &fakeOptionRepo{}, &fakeFuturesRepo{}, &fakeForexRepo{}, &fakeFundBankingClient{}, &fakeFundUserClient{}, nil)
+
+	err := svc.DeleteFund(fundSupervisorCtx(), 99)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "not found")
+}
+
+func TestDeleteFund_HasActivePositions(t *testing.T) {
+	fund := &model.InvestmentFund{FundID: 1, Name: "Active Fund", AccountNumber: "ACC-ACTIVE"}
+	fundRepo := &fakeFundRepo{findByIDResult: fund}
+	positionRepo := &fakePositionRepo{
+		findByFundRes: []model.ClientFundPosition{
+			{PositionID: 1, FundID: 1, ClientID: 42, UnitsOwned: 100},
+		},
+	}
+	svc := NewInvestmentFundService(fundRepo, positionRepo, &fakeListingRepo{}, &fakeInvestmentRepo{}, &fakeRedemptionRepo{}, &fakeAssetOwnershipRepo{}, &fakeExchangeRepo{}, &fakeStockRepo{}, &fakeOptionRepo{}, &fakeFuturesRepo{}, &fakeForexRepo{}, &fakeFundBankingClient{}, &fakeFundUserClient{}, nil)
+
+	err := svc.DeleteFund(fundSupervisorCtx(), 1)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "active client positions")
+}
+
+func TestDeleteFund_FindByIDError(t *testing.T) {
+	fundRepo := &fakeFundRepo{findByIDErr: errors.New("db error")}
+	svc := NewInvestmentFundService(fundRepo, &fakePositionRepo{}, &fakeListingRepo{}, &fakeInvestmentRepo{}, &fakeRedemptionRepo{}, &fakeAssetOwnershipRepo{}, &fakeExchangeRepo{}, &fakeStockRepo{}, &fakeOptionRepo{}, &fakeFuturesRepo{}, &fakeForexRepo{}, &fakeFundBankingClient{}, &fakeFundUserClient{}, nil)
+
+	err := svc.DeleteFund(fundSupervisorCtx(), 1)
+
+	require.Error(t, err)
+}
+
+func TestDeleteFund_DeleteRepoError(t *testing.T) {
+	fund := &model.InvestmentFund{FundID: 1, Name: "Fund", AccountNumber: "ACC"}
+	fundRepo := &fakeFundRepo{findByIDResult: fund, deleteErr: errors.New("db error")}
+	positionRepo := &fakePositionRepo{findByFundRes: []model.ClientFundPosition{}}
+	svc := NewInvestmentFundService(fundRepo, positionRepo, &fakeListingRepo{}, &fakeInvestmentRepo{}, &fakeRedemptionRepo{}, &fakeAssetOwnershipRepo{}, &fakeExchangeRepo{}, &fakeStockRepo{}, &fakeOptionRepo{}, &fakeFuturesRepo{}, &fakeForexRepo{}, &fakeFundBankingClient{}, &fakeFundUserClient{}, nil)
+
+	err := svc.DeleteFund(fundSupervisorCtx(), 1)
+
+	require.Error(t, err)
 }

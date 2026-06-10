@@ -571,3 +571,92 @@ func TestGetActuaryFunds_Unauthorized(t *testing.T) {
 	rec := performRequest(t, router, http.MethodGet, "/api/actuary/10/assets/funds", nil, "")
 	require.NotEqual(t, http.StatusOK, rec.Code)
 }
+
+func TestDeleteFund_Success(t *testing.T) {
+	t.Parallel()
+	db := setupTestDB(t)
+	router, _ := setupTestRouter(t, db)
+
+	fund := seedInvestmentFund(t, db, fmt.Sprintf("DeleteMe%d", uniqueCounter.Add(1)), 10)
+	auth := authHeaderForSupervisor(t)
+
+	rec := performRequest(t, router, http.MethodDelete, fmt.Sprintf("/api/investment-funds/%d", fund.FundID), nil, auth)
+	requireStatus(t, rec, http.StatusNoContent)
+}
+
+func TestDeleteFund_Unauthorized(t *testing.T) {
+	t.Parallel()
+	db := setupTestDB(t)
+	router, _ := setupTestRouter(t, db)
+
+	fund := seedInvestmentFund(t, db, fmt.Sprintf("DeleteUnauth%d", uniqueCounter.Add(1)), 10)
+
+	rec := performRequest(t, router, http.MethodDelete, fmt.Sprintf("/api/investment-funds/%d", fund.FundID), nil, "")
+	require.Equal(t, http.StatusUnauthorized, rec.Code)
+}
+
+func TestDeleteFund_ForbiddenForAgent(t *testing.T) {
+	t.Parallel()
+	db := setupTestDB(t)
+	router, _ := setupTestRouter(t, db)
+
+	fund := seedInvestmentFund(t, db, fmt.Sprintf("DeleteAgent%d", uniqueCounter.Add(1)), 10)
+	auth := authHeaderForAgent(t)
+
+	rec := performRequest(t, router, http.MethodDelete, fmt.Sprintf("/api/investment-funds/%d", fund.FundID), nil, auth)
+	require.Equal(t, http.StatusForbidden, rec.Code)
+}
+
+func TestDeleteFund_ForbiddenForClient(t *testing.T) {
+	t.Parallel()
+	db := setupTestDB(t)
+	router, _ := setupTestRouter(t, db)
+
+	fund := seedInvestmentFund(t, db, fmt.Sprintf("DeleteClient%d", uniqueCounter.Add(1)), 10)
+	auth := authHeaderForClient(t, 1, 1)
+
+	rec := performRequest(t, router, http.MethodDelete, fmt.Sprintf("/api/investment-funds/%d", fund.FundID), nil, auth)
+	require.Equal(t, http.StatusForbidden, rec.Code)
+}
+
+func TestDeleteFund_NotFound(t *testing.T) {
+	t.Parallel()
+	db := setupTestDB(t)
+	router, _ := setupTestRouter(t, db)
+
+	auth := authHeaderForSupervisor(t)
+
+	rec := performRequest(t, router, http.MethodDelete, "/api/investment-funds/999999", nil, auth)
+	requireStatus(t, rec, http.StatusNotFound)
+}
+
+func TestDeleteFund_InvalidID(t *testing.T) {
+	t.Parallel()
+	db := setupTestDB(t)
+	router, _ := setupTestRouter(t, db)
+
+	auth := authHeaderForSupervisor(t)
+
+	rec := performRequest(t, router, http.MethodDelete, "/api/investment-funds/abc", nil, auth)
+	requireStatus(t, rec, http.StatusBadRequest)
+}
+
+func TestDeleteFund_HasActivePositions(t *testing.T) {
+	t.Parallel()
+	db := setupTestDB(t)
+	router, _ := setupTestRouter(t, db)
+
+	fund := seedInvestmentFund(t, db, fmt.Sprintf("DeleteWithPos%d", uniqueCounter.Add(1)), 10)
+	position := &model.ClientFundPosition{
+		ClientID:            1,
+		OwnerType:           model.OwnerTypeClient,
+		FundID:              fund.FundID,
+		TotalInvestedAmount: 1000,
+	}
+	require.NoError(t, db.Create(position).Error)
+
+	auth := authHeaderForSupervisor(t)
+
+	rec := performRequest(t, router, http.MethodDelete, fmt.Sprintf("/api/investment-funds/%d", fund.FundID), nil, auth)
+	requireStatus(t, rec, http.StatusConflict)
+}

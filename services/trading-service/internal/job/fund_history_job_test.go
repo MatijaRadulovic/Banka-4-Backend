@@ -59,6 +59,10 @@ func (f *fakeFundRepoForJob) GetAllPerformanceHistories(ctx context.Context, min
 	return map[uint][]model.FundPerformance{}, nil
 }
 
+func (f *fakeFundRepoForJob) Delete(ctx context.Context, id uint) error {
+	return nil
+}
+
 type dummyBankingClient struct {
 	client.BankingClient
 }

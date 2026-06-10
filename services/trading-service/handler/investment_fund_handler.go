@@ -238,6 +238,36 @@ func (h *InvestmentFundHandler) GetFundDetail(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
+// DeleteFund godoc
+// @Summary Delete an investment fund
+// @Description Deletes an investment fund by ID. Only supervisors can delete funds. Fails if the fund has active client positions.
+// @Tags investment-funds
+// @Produce json
+// @Param fundId path int true "Fund ID"
+// @Success 204 "No Content"
+// @Failure 400 {object} errors.AppError
+// @Failure 401 {object} errors.AppError
+// @Failure 403 {object} errors.AppError
+// @Failure 404 {object} errors.AppError
+// @Failure 409 {object} errors.AppError
+// @Failure 500 {object} errors.AppError
+// @Security BearerAuth
+// @Router /api/investment-funds/{fundId} [delete]
+func (h *InvestmentFundHandler) DeleteFund(c *gin.Context) {
+	fundID, err := strconv.ParseUint(c.Param("fundId"), 10, 64)
+	if err != nil || fundID == 0 {
+		_ = c.Error(errors.BadRequestErr("invalid fund id"))
+		return
+	}
+
+	if err := h.service.DeleteFund(c.Request.Context(), uint(fundID)); err != nil {
+		_ = c.Error(err)
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
 // GetClientFundPositions godoc
 // @Summary Get client's investment fund positions
 // @Description Returns all investment fund positions for the specified client, including share percentage and current value in RSD.

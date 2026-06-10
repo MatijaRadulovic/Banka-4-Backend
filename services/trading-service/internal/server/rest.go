@@ -183,6 +183,12 @@ func SetupRoutes(r *gin.Engine, healthHandler *handler.HealthHandler, taxHandler
 				fundHandler.WithdrawFromFund,
 			)
 			funds.GET("/:fundId", fundHandler.GetFundDetail)
+			// Samo supervisor može da obriše fond
+			funds.DELETE("/:fundId",
+				auth.RequireIdentityType(auth.IdentityEmployee),
+				middleware.RequireSupervisor(userClient),
+				fundHandler.DeleteFund,
+			)
 		}
 
 		client := api.Group("/client")
