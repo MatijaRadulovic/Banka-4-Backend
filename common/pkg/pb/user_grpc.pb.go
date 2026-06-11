@@ -27,6 +27,7 @@ const (
 	UserService_GetAllClients_FullMethodName           = "/user.v1.UserService/GetAllClients"
 	UserService_GetAllActuaries_FullMethodName         = "/user.v1.UserService/GetAllActuaries"
 	UserService_GetIdentityByUserId_FullMethodName     = "/user.v1.UserService/GetIdentityByUserId"
+	UserService_GetUserByIdentityId_FullMethodName     = "/user.v1.UserService/GetUserByIdentityId"
 	UserService_IncrementUsedLimit_FullMethodName      = "/user.v1.UserService/IncrementUsedLimit"
 )
 
@@ -42,6 +43,7 @@ type UserServiceClient interface {
 	GetAllClients(ctx context.Context, in *GetAllClientsRequest, opts ...grpc.CallOption) (*GetAllClientsResponse, error)
 	GetAllActuaries(ctx context.Context, in *GetAllActuariesRequest, opts ...grpc.CallOption) (*GetAllActuariesResponse, error)
 	GetIdentityByUserId(ctx context.Context, in *GetIdentityByUserIdRequest, opts ...grpc.CallOption) (*GetIdentityByUserIdResponse, error)
+	GetUserByIdentityId(ctx context.Context, in *GetUserByIdentityIdRequest, opts ...grpc.CallOption) (*GetUserByIdentityIdResponse, error)
 	IncrementUsedLimit(ctx context.Context, in *IncrementUsedLimitRequest, opts ...grpc.CallOption) (*IncrementUsedLimitResponse, error)
 }
 
@@ -133,6 +135,16 @@ func (c *userServiceClient) GetIdentityByUserId(ctx context.Context, in *GetIden
 	return out, nil
 }
 
+func (c *userServiceClient) GetUserByIdentityId(ctx context.Context, in *GetUserByIdentityIdRequest, opts ...grpc.CallOption) (*GetUserByIdentityIdResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetUserByIdentityIdResponse)
+	err := c.cc.Invoke(ctx, UserService_GetUserByIdentityId_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *userServiceClient) IncrementUsedLimit(ctx context.Context, in *IncrementUsedLimitRequest, opts ...grpc.CallOption) (*IncrementUsedLimitResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(IncrementUsedLimitResponse)
@@ -155,6 +167,7 @@ type UserServiceServer interface {
 	GetAllClients(context.Context, *GetAllClientsRequest) (*GetAllClientsResponse, error)
 	GetAllActuaries(context.Context, *GetAllActuariesRequest) (*GetAllActuariesResponse, error)
 	GetIdentityByUserId(context.Context, *GetIdentityByUserIdRequest) (*GetIdentityByUserIdResponse, error)
+	GetUserByIdentityId(context.Context, *GetUserByIdentityIdRequest) (*GetUserByIdentityIdResponse, error)
 	IncrementUsedLimit(context.Context, *IncrementUsedLimitRequest) (*IncrementUsedLimitResponse, error)
 	mustEmbedUnimplementedUserServiceServer()
 }
@@ -189,6 +202,9 @@ func (UnimplementedUserServiceServer) GetAllActuaries(context.Context, *GetAllAc
 }
 func (UnimplementedUserServiceServer) GetIdentityByUserId(context.Context, *GetIdentityByUserIdRequest) (*GetIdentityByUserIdResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetIdentityByUserId not implemented")
+}
+func (UnimplementedUserServiceServer) GetUserByIdentityId(context.Context, *GetUserByIdentityIdRequest) (*GetUserByIdentityIdResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetUserByIdentityId not implemented")
 }
 func (UnimplementedUserServiceServer) IncrementUsedLimit(context.Context, *IncrementUsedLimitRequest) (*IncrementUsedLimitResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method IncrementUsedLimit not implemented")
@@ -358,6 +374,24 @@ func _UserService_GetIdentityByUserId_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _UserService_GetUserByIdentityId_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetUserByIdentityIdRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).GetUserByIdentityId(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_GetUserByIdentityId_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).GetUserByIdentityId(ctx, req.(*GetUserByIdentityIdRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _UserService_IncrementUsedLimit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(IncrementUsedLimitRequest)
 	if err := dec(in); err != nil {
@@ -414,6 +448,10 @@ var UserService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetIdentityByUserId",
 			Handler:    _UserService_GetIdentityByUserId_Handler,
+		},
+		{
+			MethodName: "GetUserByIdentityId",
+			Handler:    _UserService_GetUserByIdentityId_Handler,
 		},
 		{
 			MethodName: "IncrementUsedLimit",

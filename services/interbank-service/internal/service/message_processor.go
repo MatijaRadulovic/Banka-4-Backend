@@ -38,6 +38,7 @@ type MessageProcessor struct {
 	trading      client.TradingClient
 	contracts    repository.PeerContractRepository
 	negotiations repository.PeerNegotiationRepository
+	userClient   client.UserClient
 }
 
 func NewMessageProcessor(
@@ -50,6 +51,7 @@ func NewMessageProcessor(
 	trading client.TradingClient,
 	contracts repository.PeerContractRepository,
 	negotiations repository.PeerNegotiationRepository,
+	userClient client.UserClient,
 ) *MessageProcessor {
 	return &MessageProcessor{
 		inbound:      inbound,
@@ -61,7 +63,19 @@ func NewMessageProcessor(
 		trading:      trading,
 		contracts:    contracts,
 		negotiations: negotiations,
+		userClient:   userClient,
 	}
+}
+
+// resolveLocalUser maps a local Identity.ID (as carried by PERSON-account ids on
+// the wire) to the role-scoped user id (Client.ClientID / Employee.EmployeeID)
+// and its user type ("CLIENT" | "EMPLOYEE") that banking/trading expect.
+func (p *MessageProcessor) resolveLocalUser(ctx context.Context, identityID uint) (uint64, string, error) {
+	resp, err := p.userClient.GetUserByIdentityID(ctx, uint64(identityID))
+	if err != nil {
+		return 0, "", err
+	}
+	return resp.GetUserId(), resp.GetUserType(), nil
 }
 
 func (p *MessageProcessor) ProcessNewTx(ctx context.Context, peerRouting int, key dto.IdempotenceKey, tx *dto.Transaction) (int, any, error) {
@@ -453,13 +467,18 @@ func (p *MessageProcessor) prepareMonasPosting(ctx context.Context, tx *dto.Tran
 		return &preparedItem{kind: "cash", id: pid}, "", nil
 
 	case dto.TxAccountPerson:
-		isValid, clientLocalID := p.localPersonAccount(posting.Account)
+		isValid, identityID := p.localPersonAccount(posting.Account)
 		if !isValid {
 			return nil, dto.ReasonNoSuchAccount, fmt.Errorf("invalid person account for cash")
 		}
-		_, err := p.banking.PrepareInterbankCashPosting(ctx, &pb.PrepareInterbankCashPostingRequest{
+		userID, userType, err := p.resolveLocalUser(ctx, identityID)
+		if err != nil {
+			return nil, dto.ReasonNoSuchAccount, err
+		}
+		_, err = p.banking.PrepareInterbankCashPosting(ctx, &pb.PrepareInterbankCashPostingRequest{
 			PostingId:    pid,
-			ClientId:     uint64(clientLocalID),
+			ClientId:     userID,
+			UserType:     userType,
 			CurrencyCode: currency,
 			Amount:       posting.Amount,
 		})
@@ -480,13 +499,18 @@ func (p *MessageProcessor) prepareMonasPosting(ctx context.Context, tx *dto.Tran
 		if contract == nil {
 			return nil, dto.ReasonOptionNegotiationNotFound, fmt.Errorf("option contract not found")
 		}
-		sellerID, parseErr := strconv.ParseUint(contract.SellerID, 10, 64)
-		if parseErr != nil || sellerID == 0 {
+		sellerIdentityID, parseErr := strconv.ParseUint(contract.SellerID, 10, 64)
+		if parseErr != nil || sellerIdentityID == 0 {
 			return nil, dto.ReasonNoSuchAccount, fmt.Errorf("invalid seller id on contract")
+		}
+		sellerID, sellerType, err := p.resolveLocalUser(ctx, uint(sellerIdentityID))
+		if err != nil {
+			return nil, dto.ReasonNoSuchAccount, err
 		}
 		_, err = p.banking.PrepareInterbankCashPosting(ctx, &pb.PrepareInterbankCashPostingRequest{
 			PostingId:    pid,
 			ClientId:     sellerID,
+			UserType:     sellerType,
 			CurrencyCode: currency,
 			Amount:       posting.Amount,
 		})
@@ -505,7 +529,7 @@ func (p *MessageProcessor) prepareOptionPosting(ctx context.Context, tx *dto.Tra
 	if math.Abs(math.Abs(posting.Amount)-1) > txBalanceEpsilon {
 		return nil, dto.ReasonOptionAmountIncorrect, fmt.Errorf("option posting amount must be +/-1")
 	}
-	isValid, clientID := p.localPersonAccount(posting.Account)
+	isValid, identityID := p.localPersonAccount(posting.Account)
 	if !isValid {
 		return nil, dto.ReasonNoSuchAccount, fmt.Errorf("invalid option account")
 	}
@@ -530,9 +554,14 @@ func (p *MessageProcessor) prepareOptionPosting(ctx context.Context, tx *dto.Tra
 	if negotiation == nil {
 		return nil, dto.ReasonOptionNegotiationNotFound, fmt.Errorf("negotiation not found")
 	}
+	sellerID, sellerType, err := p.resolveLocalUser(ctx, identityID)
+	if err != nil {
+		return nil, dto.ReasonNoSuchAccount, err
+	}
 	_, err = p.trading.ReservePeerOtcShares(ctx, &pb.ReservePeerOtcSharesRequest{
 		ContractId: fmt.Sprintf("%d:%s", option.NegotiationID.RoutingNumber, option.NegotiationID.ID),
-		SellerId:   uint64(clientID),
+		SellerId:   sellerID,
+		UserType:   sellerType,
 		Ticker:     option.Stock.Ticker,
 		Amount:     option.Amount,
 	})
@@ -744,9 +773,13 @@ func (p *MessageProcessor) commitStockPosting(ctx context.Context, tx *dto.Trans
 	}
 
 	// Buyer CREDIT via PERSON account: add ownership and mark EXERCISED.
-	isValid, buyerLocalID := p.localPersonAccount(posting.Account)
+	isValid, buyerIdentityID := p.localPersonAccount(posting.Account)
 	if !isValid {
 		return nil
+	}
+	buyerLocalID, buyerType, err := p.resolveLocalUser(ctx, buyerIdentityID)
+	if err != nil {
+		return err
 	}
 
 	// Find negotiation ID from the paired STOCK DEBIT (OPTION account) posting.
@@ -765,7 +798,8 @@ func (p *MessageProcessor) commitStockPosting(ctx context.Context, tx *dto.Trans
 	contractKey := fmt.Sprintf("%d:%s", contract.AuthorityRoutingNumber, contract.ID)
 	if _, err := p.trading.CreditPeerOtcShares(ctx, &pb.CreditPeerOtcSharesRequest{
 		ContractId:      contractKey,
-		BuyerId:         uint64(buyerLocalID),
+		BuyerId:         buyerLocalID,
+		UserType:        buyerType,
 		Ticker:          stock.Ticker,
 		Amount:          posting.Amount,
 		PricePerUnitRsd: contract.StrikePrice,

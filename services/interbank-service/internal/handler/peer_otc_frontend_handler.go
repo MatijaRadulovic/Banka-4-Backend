@@ -87,7 +87,7 @@ func (h *PeerOtcFrontendHandler) ListPublicStocks(c *gin.Context) {
 // @Security BearerAuth
 // @Router /api/peer-otc/negotiations [get]
 func (h *PeerOtcFrontendHandler) ListMyNegotiations(c *gin.Context) {
-	userID, err := auth.GetSubjectFromContext(c.Request.Context())
+	userID, err := auth.GetIdentityIDFromContext(c.Request.Context())
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -109,7 +109,7 @@ func (h *PeerOtcFrontendHandler) ListMyNegotiations(c *gin.Context) {
 // @Security BearerAuth
 // @Router /api/peer-otc/contracts [get]
 func (h *PeerOtcFrontendHandler) ListMyContracts(c *gin.Context) {
-	userID, err := auth.GetSubjectFromContext(c.Request.Context())
+	userID, err := auth.GetIdentityIDFromContext(c.Request.Context())
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -134,7 +134,7 @@ func (h *PeerOtcFrontendHandler) ListMyContracts(c *gin.Context) {
 // @Security BearerAuth
 // @Router /api/peer-otc/contracts/{rn}/{id}/exercise [post]
 func (h *PeerOtcFrontendHandler) ExerciseContract(c *gin.Context) {
-	userID, err := auth.GetSubjectFromContext(c.Request.Context())
+	userID, err := auth.GetIdentityIDFromContext(c.Request.Context())
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -176,7 +176,7 @@ func (h *PeerOtcFrontendHandler) ExerciseContract(c *gin.Context) {
 // @Security BearerAuth
 // @Router /api/peer-otc/negotiations [post]
 func (h *PeerOtcFrontendHandler) CreateNegotiation(c *gin.Context) {
-	userID, err := auth.GetSubjectFromContext(c.Request.Context())
+	userID, err := auth.GetIdentityIDFromContext(c.Request.Context())
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -225,7 +225,7 @@ func (h *PeerOtcFrontendHandler) CreateNegotiation(c *gin.Context) {
 // @Security BearerAuth
 // @Router /api/peer-otc/negotiations/{rn}/{id}/counter [put]
 func (h *PeerOtcFrontendHandler) SendCounterOffer(c *gin.Context) {
-	userID, err := auth.GetSubjectFromContext(c.Request.Context())
+	userID, err := auth.GetIdentityIDFromContext(c.Request.Context())
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -269,7 +269,7 @@ func (h *PeerOtcFrontendHandler) SendCounterOffer(c *gin.Context) {
 // @Security BearerAuth
 // @Router /api/peer-otc/negotiations/{rn}/{id}/accept [post]
 func (h *PeerOtcFrontendHandler) AcceptNegotiation(c *gin.Context) {
-	userID, err := auth.GetSubjectFromContext(c.Request.Context())
+	userID, err := auth.GetIdentityIDFromContext(c.Request.Context())
 	if err != nil {
 		_ = c.Error(err)
 		return
@@ -303,7 +303,7 @@ func (h *PeerOtcFrontendHandler) AcceptNegotiation(c *gin.Context) {
 // @Security BearerAuth
 // @Router /api/peer-otc/negotiations/{rn}/{id} [delete]
 func (h *PeerOtcFrontendHandler) Withdraw(c *gin.Context) {
-	userID, err := auth.GetSubjectFromContext(c.Request.Context())
+	userID, err := auth.GetIdentityIDFromContext(c.Request.Context())
 	if err != nil {
 		_ = c.Error(err)
 		return

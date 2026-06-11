@@ -542,6 +542,40 @@ func (t *fakeTrading) CreditPeerOtcShares(_ context.Context, req *pb.CreditPeerO
 }
 
 // ---------------------------------------------------------------------------
+// Fake user client.
+// ---------------------------------------------------------------------------
+
+// fakeUserClient resolves an identity id to a role-scoped user id. By default it
+// echoes the identity id back as a CLIENT user id (pass-through), which keeps the
+// existing flow tests' ids unchanged. Override userType/byIdentity for type-aware
+// cases.
+type fakeUserClient struct {
+	userType   string
+	byIdentity map[uint64]*pb.GetUserByIdentityIdResponse
+	err        error
+}
+
+func (u *fakeUserClient) GetClientByID(_ context.Context, id uint64) (*pb.GetClientByIdResponse, error) {
+	return &pb.GetClientByIdResponse{Id: id}, nil
+}
+
+func (u *fakeUserClient) GetUserByIdentityID(_ context.Context, identityID uint64) (*pb.GetUserByIdentityIdResponse, error) {
+	if u.err != nil {
+		return nil, u.err
+	}
+	if u.byIdentity != nil {
+		if resp, ok := u.byIdentity[identityID]; ok {
+			return resp, nil
+		}
+	}
+	ut := u.userType
+	if ut == "" {
+		ut = "CLIENT"
+	}
+	return &pb.GetUserByIdentityIdResponse{UserId: identityID, UserType: ut}, nil
+}
+
+// ---------------------------------------------------------------------------
 // Peer resolver helpers.
 // ---------------------------------------------------------------------------
 

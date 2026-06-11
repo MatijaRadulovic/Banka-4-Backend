@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/RAF-SI-2025/Banka-4-Backend/common/pkg/pb"
+	"github.com/RAF-SI-2025/Banka-4-Backend/services/trading-service/internal/client"
+	"github.com/RAF-SI-2025/Banka-4-Backend/services/trading-service/internal/model"
 	"github.com/RAF-SI-2025/Banka-4-Backend/services/trading-service/internal/repository"
 	"github.com/RAF-SI-2025/Banka-4-Backend/services/trading-service/internal/service"
 )
@@ -17,17 +19,20 @@ type TradingServiceServer struct {
 	investmentFundService *service.InvestmentFundService
 	assetOwnershipRepo    repository.AssetOwnershipRepository
 	peerOtcShareService   *service.PeerOtcShareService
+	userClient            client.UserServiceClient
 }
 
 func NewTradingServiceServer(
 	investmentFundService *service.InvestmentFundService,
 	assetOwnershipRepo repository.AssetOwnershipRepository,
 	peerOtcShareService *service.PeerOtcShareService,
+	userClient client.UserServiceClient,
 ) *TradingServiceServer {
 	return &TradingServiceServer{
 		investmentFundService: investmentFundService,
 		assetOwnershipRepo:    assetOwnershipRepo,
 		peerOtcShareService:   peerOtcShareService,
+		userClient:            userClient,
 	}
 }
 
@@ -41,8 +46,10 @@ func (s *TradingServiceServer) TransferFunds(ctx context.Context, req *pb.Transf
 
 // ListPublicStocks aggregates every AssetOwnership with public_amount > 0
 // into a per-ticker entry, with one (seller_id, amount) row per owner.
-// Pages through the repository to avoid loading the full table in memory
-// when the catalogue grows.
+// seller_id is the owner's global Identity.ID — resolved from the role-scoped
+// UserId via user-service — so it is unique across owner types and unambiguous
+// to peer banks on the wire. Pages through the repository to avoid loading the
+// full table in memory when the catalogue grows.
 func (s *TradingServiceServer) ListPublicStocks(ctx context.Context, _ *pb.ListPublicStocksRequest) (*pb.ListPublicStocksResponse, error) {
 	byTicker := make(map[string][]*pb.PublicStockSeller)
 
@@ -59,8 +66,19 @@ func (s *TradingServiceServer) ListPublicStocks(ctx context.Context, _ *pb.ListP
 			if ticker == "" {
 				continue
 			}
+
+			userType := "CLIENT"
+			if row.OwnerType == model.OwnerTypeBank {
+				userType = "ACTUARY"
+			}
+
+			resp, err := s.userClient.GetIdentityByUserId(ctx, uint64(row.UserId), userType)
+			if err != nil {
+				return nil, err
+			}
+
 			byTicker[ticker] = append(byTicker[ticker], &pb.PublicStockSeller{
-				SellerId: uint64(row.UserId),
+				SellerId: resp.GetIdentityId(),
 				Amount:   row.PublicAmount,
 			})
 		}
@@ -83,7 +101,7 @@ func (s *TradingServiceServer) ListPublicStocks(ctx context.Context, _ *pb.ListP
 }
 
 func (s *TradingServiceServer) ReservePeerOtcShares(ctx context.Context, req *pb.ReservePeerOtcSharesRequest) (*pb.PeerOtcSharesResponse, error) {
-	statusValue, err := s.peerOtcShareService.Reserve(ctx, req.GetContractId(), uint(req.GetSellerId()), req.GetTicker(), req.GetAmount())
+	statusValue, err := s.peerOtcShareService.Reserve(ctx, req.GetContractId(), uint(req.GetSellerId()), req.GetTicker(), req.GetAmount(), req.GetUserType())
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +125,7 @@ func (s *TradingServiceServer) ConsumePeerOtcShares(ctx context.Context, req *pb
 }
 
 func (s *TradingServiceServer) CreditPeerOtcShares(ctx context.Context, req *pb.CreditPeerOtcSharesRequest) (*pb.PeerOtcSharesResponse, error) {
-	statusValue, err := s.peerOtcShareService.Credit(ctx, req.GetContractId(), uint(req.GetBuyerId()), req.GetTicker(), req.GetAmount(), req.GetPricePerUnitRsd())
+	statusValue, err := s.peerOtcShareService.Credit(ctx, req.GetContractId(), uint(req.GetBuyerId()), req.GetTicker(), req.GetAmount(), req.GetPricePerUnitRsd(), req.GetUserType())
 	if err != nil {
 		return nil, err
 	}

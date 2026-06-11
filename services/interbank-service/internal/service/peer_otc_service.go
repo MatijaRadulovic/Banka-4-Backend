@@ -755,19 +755,19 @@ func (s *PeerOtcService) ListLocalPublicStocks(ctx context.Context) ([]dto.Publi
 
 // LookupLocalUser serves §3.7 GET /interbank/user/:rn/:id — peer banks
 // resolve a foreign user id we own into a display name. routingNumber
-// must match ours; id is the local uint user id encoded as decimal.
+// must match ours; id is the local Identity.ID encoded as decimal.
 // Returns 404 when the user is not found.
 func (s *PeerOtcService) LookupLocalUser(ctx context.Context, routingNumber int, id string) (*dto.UserInformation, error) {
 	if routingNumber != s.peers.OurRoutingNumber() {
 		return nil, errors.BadRequestErr("routingNumber does not match this bank")
 	}
 
-	userID, err := strconv.ParseUint(id, 10, 64)
+	identityID, err := strconv.ParseUint(id, 10, 64)
 	if err != nil {
 		return nil, errors.BadRequestErr("user id must be a positive integer")
 	}
 
-	resp, err := s.userClient.GetClientByID(ctx, userID)
+	resp, err := s.userClient.GetUserByIdentityID(ctx, identityID)
 	if err != nil {
 		if grpcStatus, ok := status.FromError(err); ok && grpcStatus.Code() == codes.NotFound {
 			return nil, errors.NotFoundErr("user not found")

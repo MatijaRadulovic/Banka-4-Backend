@@ -9,4 +9,5 @@ import (
 // UserClient wraps the user-service gRPC surface used by interbank-service.
 type UserClient interface {
 	GetClientByID(ctx context.Context, id uint64) (*pb.GetClientByIdResponse, error)
+	GetUserByIdentityID(ctx context.Context, identityID uint64) (*pb.GetUserByIdentityIdResponse, error)
 }

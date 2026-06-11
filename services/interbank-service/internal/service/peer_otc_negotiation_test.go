@@ -48,7 +48,7 @@ func TestPrepareAndEnqueueNewTx_PaymentFlow(t *testing.T) {
 		prepared := newFakePrepared()
 		p := NewMessageProcessor(
 			newFakeInbound(), prepared, outbound, fakeTxManager{}, testResolver(ourRouting),
-			banking, &fakeTrading{}, newFakeContracts(), newFakeNegotiations(),
+			banking, &fakeTrading{}, newFakeContracts(), newFakeNegotiations(), &fakeUserClient{},
 		)
 
 		_, vote, msg, err := p.PrepareAndEnqueueNewTx(context.Background(), paymentTx("pay-yes", 100), 111, "pay-yes-new", model.FlowTypePayment, 42)
@@ -74,7 +74,7 @@ func TestPrepareAndEnqueueNewTx_PaymentFlow(t *testing.T) {
 		prepared := newFakePrepared()
 		p := NewMessageProcessor(
 			newFakeInbound(), prepared, outbound, fakeTxManager{}, testResolver(ourRouting),
-			banking, &fakeTrading{}, newFakeContracts(), newFakeNegotiations(),
+			banking, &fakeTrading{}, newFakeContracts(), newFakeNegotiations(), &fakeUserClient{},
 		)
 
 		_, vote, msg, err := p.PrepareAndEnqueueNewTx(context.Background(), paymentTx("pay-no", 100), 111, "pay-no-new", model.FlowTypePayment, 42)

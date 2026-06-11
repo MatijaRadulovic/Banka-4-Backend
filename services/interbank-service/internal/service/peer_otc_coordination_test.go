@@ -118,7 +118,7 @@ func newCoordSetup(peers *PeerResolver) *coordSetup {
 	outbound := newFakeOutbound()
 	processor := NewMessageProcessor(
 		newFakeInbound(), prepared, outbound, fakeTxManager{}, peers,
-		banking, &fakeTrading{}, newFakeContracts(), newFakeNegotiations(),
+		banking, &fakeTrading{}, newFakeContracts(), newFakeNegotiations(), &fakeUserClient{},
 	)
 	peerClient := NewPeerOtcClient(peers)
 	svc := NewPeerOtcService(

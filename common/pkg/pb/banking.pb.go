@@ -1220,6 +1220,7 @@ type PrepareInterbankCashPostingRequest struct {
 	ClientId      uint64                 `protobuf:"varint,3,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
 	CurrencyCode  string                 `protobuf:"bytes,4,opt,name=currency_code,json=currencyCode,proto3" json:"currency_code,omitempty"`
 	Amount        float64                `protobuf:"fixed64,5,opt,name=amount,proto3" json:"amount,omitempty"`
+	UserType      string                 `protobuf:"bytes,6,opt,name=user_type,json=userType,proto3" json:"user_type,omitempty"` // "CLIENT" | "EMPLOYEE"
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1287,6 +1288,13 @@ func (x *PrepareInterbankCashPostingRequest) GetAmount() float64 {
 		return x.Amount
 	}
 	return 0
+}
+
+func (x *PrepareInterbankCashPostingRequest) GetUserType() string {
+	if x != nil {
+		return x.UserType
+	}
+	return ""
 }
 
 type InterbankCashPostingRequest struct {
@@ -1578,14 +1586,15 @@ const file_common_proto_banking_proto_rawDesc = "" +
 	"\n" +
 	"manager_id\x18\x02 \x01(\x04R\tmanagerId\"B\n" +
 	"\x19CreateFundAccountResponse\x12%\n" +
-	"\x0eaccount_number\x18\x01 \x01(\tR\raccountNumber\"\xc4\x01\n" +
+	"\x0eaccount_number\x18\x01 \x01(\tR\raccountNumber\"\xe1\x01\n" +
 	"\"PrepareInterbankCashPostingRequest\x12\x1d\n" +
 	"\n" +
 	"posting_id\x18\x01 \x01(\tR\tpostingId\x12%\n" +
 	"\x0eaccount_number\x18\x02 \x01(\tR\raccountNumber\x12\x1b\n" +
 	"\tclient_id\x18\x03 \x01(\x04R\bclientId\x12#\n" +
 	"\rcurrency_code\x18\x04 \x01(\tR\fcurrencyCode\x12\x16\n" +
-	"\x06amount\x18\x05 \x01(\x01R\x06amount\"<\n" +
+	"\x06amount\x18\x05 \x01(\x01R\x06amount\x12\x1b\n" +
+	"\tuser_type\x18\x06 \x01(\tR\buserType\"<\n" +
 	"\x1bInterbankCashPostingRequest\x12\x1d\n" +
 	"\n" +
 	"posting_id\x18\x01 \x01(\tR\tpostingId\"\xb9\x01\n" +

@@ -46,6 +46,7 @@ message ReservePeerOtcSharesRequest {
   uint64 seller_id = 2;
   string ticker = 3;
   double amount = 4;
+  string user_type = 5;   // "CLIENT" | "EMPLOYEE"
 }
 
 message ReleasePeerOtcSharesRequest {
@@ -62,6 +63,7 @@ message CreditPeerOtcSharesRequest {
   string ticker = 3;
   double amount = 4;
   double price_per_unit_rsd = 5;
+  string user_type = 6;   // "CLIENT" | "EMPLOYEE"
 }
 
 message PeerOtcSharesResponse {

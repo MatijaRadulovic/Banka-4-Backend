@@ -32,12 +32,23 @@ func NewPeerOtcShareService(
 	}
 }
 
-func (s *PeerOtcShareService) Reserve(ctx context.Context, contractID string, sellerID uint, ticker string, amount float64) (string, error) {
+// ownerTypeFromUserType maps the interbank user_type ("CLIENT" | "EMPLOYEE")
+// to the AssetOwnership OwnerType. EMPLOYEE means the party is the bank acting
+// through an employee. Empty/unknown defaults to CLIENT for backward compat.
+func ownerTypeFromUserType(userType string) model.OwnerType {
+	if userType == "EMPLOYEE" {
+		return model.OwnerTypeBank
+	}
+	return model.OwnerTypeClient
+}
+
+func (s *PeerOtcShareService) Reserve(ctx context.Context, contractID string, sellerID uint, ticker string, amount float64, userType string) (string, error) {
 	contractID = strings.TrimSpace(contractID)
 	ticker = strings.TrimSpace(ticker)
 	if contractID == "" || ticker == "" || sellerID == 0 || amount <= 0 {
 		return "", appErrors.BadRequestErr("contract id, seller id, ticker and positive amount are required")
 	}
+	ownerType := ownerTypeFromUserType(userType)
 
 	stock, err := s.findStockByTicker(ctx, ticker)
 	if err != nil {
@@ -58,7 +69,7 @@ func (s *PeerOtcShareService) Reserve(ctx context.Context, contractID string, se
 			return nil
 		}
 
-		ownership, err := s.assetOwnershipRepo.FindByUserAndAssetForUpdate(ctx, sellerID, model.OwnerTypeClient, stock.AssetID)
+		ownership, err := s.assetOwnershipRepo.FindByUserAndAssetForUpdate(ctx, sellerID, ownerType, stock.AssetID)
 		if err != nil {
 			return appErrors.InternalErr(err)
 		}
@@ -75,6 +86,7 @@ func (s *PeerOtcShareService) Reserve(ctx context.Context, contractID string, se
 		reservation := &model.PeerOtcShareReservation{
 			ContractID:     contractID,
 			SellerID:       sellerID,
+			OwnerType:      ownerType,
 			StockAssetID:   stock.AssetID,
 			ReservedAmount: amount,
 			Status:         model.PeerOtcShareReservationActive,
@@ -107,7 +119,7 @@ func (s *PeerOtcShareService) Release(ctx context.Context, contractID string) (s
 			return appErrors.BadRequestErr("cannot release consumed shares")
 		}
 
-		ownership, err := s.assetOwnershipRepo.FindByUserAndAssetForUpdate(ctx, reservation.SellerID, model.OwnerTypeClient, reservation.StockAssetID)
+		ownership, err := s.assetOwnershipRepo.FindByUserAndAssetForUpdate(ctx, reservation.SellerID, reservation.OwnerType, reservation.StockAssetID)
 		if err != nil {
 			return appErrors.InternalErr(err)
 		}
@@ -133,7 +145,7 @@ func (s *PeerOtcShareService) Consume(ctx context.Context, contractID string) (s
 			return appErrors.BadRequestErr("cannot consume released shares")
 		}
 
-		ownership, err := s.assetOwnershipRepo.FindByUserAndAssetForUpdate(ctx, reservation.SellerID, model.OwnerTypeClient, reservation.StockAssetID)
+		ownership, err := s.assetOwnershipRepo.FindByUserAndAssetForUpdate(ctx, reservation.SellerID, reservation.OwnerType, reservation.StockAssetID)
 		if err != nil {
 			return appErrors.InternalErr(err)
 		}
@@ -157,12 +169,13 @@ func (s *PeerOtcShareService) Consume(ctx context.Context, contractID string) (s
 	})
 }
 
-func (s *PeerOtcShareService) Credit(ctx context.Context, contractID string, buyerID uint, ticker string, amount, pricePerUnitRSD float64) (string, error) {
+func (s *PeerOtcShareService) Credit(ctx context.Context, contractID string, buyerID uint, ticker string, amount, pricePerUnitRSD float64, userType string) (string, error) {
 	contractID = strings.TrimSpace(contractID)
 	ticker = strings.TrimSpace(ticker)
 	if contractID == "" || buyerID == 0 || ticker == "" || amount <= 0 {
 		return "", appErrors.BadRequestErr("contract id, buyer id, ticker and positive amount are required")
 	}
+	ownerType := ownerTypeFromUserType(userType)
 
 	stock, err := s.findStockByTicker(ctx, ticker)
 	if err != nil {
@@ -182,14 +195,14 @@ func (s *PeerOtcShareService) Credit(ctx context.Context, contractID string, buy
 			return nil
 		}
 
-		ownership, err := s.assetOwnershipRepo.FindByUserAndAssetForUpdate(ctx, buyerID, model.OwnerTypeClient, stock.AssetID)
+		ownership, err := s.assetOwnershipRepo.FindByUserAndAssetForUpdate(ctx, buyerID, ownerType, stock.AssetID)
 		if err != nil {
 			return appErrors.InternalErr(err)
 		}
 		if ownership == nil {
 			ownership = &model.AssetOwnership{
 				UserId:       buyerID,
-				OwnerType:    model.OwnerTypeClient,
+				OwnerType:    ownerType,
 				AssetID:      stock.AssetID,
 				Amount:       0,
 				PublicAmount: 0,
@@ -209,6 +222,7 @@ func (s *PeerOtcShareService) Credit(ctx context.Context, contractID string, buy
 		if err := s.shareRepo.CreateCredit(ctx, &model.PeerOtcShareCredit{
 			ContractID:      contractID,
 			BuyerID:         buyerID,
+			OwnerType:       ownerType,
 			StockAssetID:    stock.AssetID,
 			Amount:          amount,
 			PricePerUnitRSD: pricePerUnitRSD,

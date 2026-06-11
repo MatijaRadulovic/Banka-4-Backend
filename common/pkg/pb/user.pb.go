@@ -981,6 +981,110 @@ func (x *GetIdentityByUserIdResponse) GetIdentityId() uint64 {
 	return 0
 }
 
+type GetUserByIdentityIdRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	IdentityId    uint64                 `protobuf:"varint,1,opt,name=identity_id,json=identityId,proto3" json:"identity_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUserByIdentityIdRequest) Reset() {
+	*x = GetUserByIdentityIdRequest{}
+	mi := &file_common_proto_user_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUserByIdentityIdRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUserByIdentityIdRequest) ProtoMessage() {}
+
+func (x *GetUserByIdentityIdRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_common_proto_user_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUserByIdentityIdRequest.ProtoReflect.Descriptor instead.
+func (*GetUserByIdentityIdRequest) Descriptor() ([]byte, []int) {
+	return file_common_proto_user_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *GetUserByIdentityIdRequest) GetIdentityId() uint64 {
+	if x != nil {
+		return x.IdentityId
+	}
+	return 0
+}
+
+type GetUserByIdentityIdResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FullName      string                 `protobuf:"bytes,1,opt,name=full_name,json=fullName,proto3" json:"full_name,omitempty"`
+	UserType      string                 `protobuf:"bytes,2,opt,name=user_type,json=userType,proto3" json:"user_type,omitempty"` // "CLIENT" | "EMPLOYEE"
+	UserId        uint64                 `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`      // role-scoped PK: Client.ClientID or Employee.EmployeeID
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUserByIdentityIdResponse) Reset() {
+	*x = GetUserByIdentityIdResponse{}
+	mi := &file_common_proto_user_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUserByIdentityIdResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUserByIdentityIdResponse) ProtoMessage() {}
+
+func (x *GetUserByIdentityIdResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_common_proto_user_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUserByIdentityIdResponse.ProtoReflect.Descriptor instead.
+func (*GetUserByIdentityIdResponse) Descriptor() ([]byte, []int) {
+	return file_common_proto_user_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *GetUserByIdentityIdResponse) GetFullName() string {
+	if x != nil {
+		return x.FullName
+	}
+	return ""
+}
+
+func (x *GetUserByIdentityIdResponse) GetUserType() string {
+	if x != nil {
+		return x.UserType
+	}
+	return ""
+}
+
+func (x *GetUserByIdentityIdResponse) GetUserId() uint64 {
+	if x != nil {
+		return x.UserId
+	}
+	return 0
+}
+
 type IncrementUsedLimitRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EmployeeId    uint64                 `protobuf:"varint,1,opt,name=employee_id,json=employeeId,proto3" json:"employee_id,omitempty"`
@@ -991,7 +1095,7 @@ type IncrementUsedLimitRequest struct {
 
 func (x *IncrementUsedLimitRequest) Reset() {
 	*x = IncrementUsedLimitRequest{}
-	mi := &file_common_proto_user_proto_msgTypes[16]
+	mi := &file_common_proto_user_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1003,7 +1107,7 @@ func (x *IncrementUsedLimitRequest) String() string {
 func (*IncrementUsedLimitRequest) ProtoMessage() {}
 
 func (x *IncrementUsedLimitRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_user_proto_msgTypes[16]
+	mi := &file_common_proto_user_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1016,7 +1120,7 @@ func (x *IncrementUsedLimitRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IncrementUsedLimitRequest.ProtoReflect.Descriptor instead.
 func (*IncrementUsedLimitRequest) Descriptor() ([]byte, []int) {
-	return file_common_proto_user_proto_rawDescGZIP(), []int{16}
+	return file_common_proto_user_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *IncrementUsedLimitRequest) GetEmployeeId() uint64 {
@@ -1042,7 +1146,7 @@ type IncrementUsedLimitResponse struct {
 
 func (x *IncrementUsedLimitResponse) Reset() {
 	*x = IncrementUsedLimitResponse{}
-	mi := &file_common_proto_user_proto_msgTypes[17]
+	mi := &file_common_proto_user_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1054,7 +1158,7 @@ func (x *IncrementUsedLimitResponse) String() string {
 func (*IncrementUsedLimitResponse) ProtoMessage() {}
 
 func (x *IncrementUsedLimitResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_common_proto_user_proto_msgTypes[17]
+	mi := &file_common_proto_user_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1067,7 +1171,7 @@ func (x *IncrementUsedLimitResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IncrementUsedLimitResponse.ProtoReflect.Descriptor instead.
 func (*IncrementUsedLimitResponse) Descriptor() ([]byte, []int) {
-	return file_common_proto_user_proto_rawDescGZIP(), []int{17}
+	return file_common_proto_user_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *IncrementUsedLimitResponse) GetUsedLimit() float64 {
@@ -1158,14 +1262,21 @@ const file_common_proto_user_proto_rawDesc = "" +
 	"\tuser_type\x18\x02 \x01(\tR\buserType\">\n" +
 	"\x1bGetIdentityByUserIdResponse\x12\x1f\n" +
 	"\videntity_id\x18\x01 \x01(\x04R\n" +
-	"identityId\"T\n" +
+	"identityId\"=\n" +
+	"\x1aGetUserByIdentityIdRequest\x12\x1f\n" +
+	"\videntity_id\x18\x01 \x01(\x04R\n" +
+	"identityId\"p\n" +
+	"\x1bGetUserByIdentityIdResponse\x12\x1b\n" +
+	"\tfull_name\x18\x01 \x01(\tR\bfullName\x12\x1b\n" +
+	"\tuser_type\x18\x02 \x01(\tR\buserType\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\x04R\x06userId\"T\n" +
 	"\x19IncrementUsedLimitRequest\x12\x1f\n" +
 	"\vemployee_id\x18\x01 \x01(\x04R\n" +
 	"employeeId\x12\x16\n" +
 	"\x06amount\x18\x02 \x01(\x01R\x06amount\";\n" +
 	"\x1aIncrementUsedLimitResponse\x12\x1d\n" +
 	"\n" +
-	"used_limit\x18\x01 \x01(\x01R\tusedLimit2\xb6\x06\n" +
+	"used_limit\x18\x01 \x01(\x01R\tusedLimit2\x98\a\n" +
 	"\vUserService\x12N\n" +
 	"\rGetClientById\x12\x1d.user.v1.GetClientByIdRequest\x1a\x1e.user.v1.GetClientByIdResponse\x12T\n" +
 	"\x0fGetClientsByIds\x12\x1f.user.v1.GetClientsByIdsRequest\x1a .user.v1.GetClientsByIdsResponse\x12^\n" +
@@ -1174,7 +1285,8 @@ const file_common_proto_user_proto_rawDesc = "" +
 	"\x17GetEmployeeByIdentityId\x12'.user.v1.GetEmployeeByIdentityIdRequest\x1a .user.v1.GetEmployeeByIdResponse\x12N\n" +
 	"\rGetAllClients\x12\x1d.user.v1.GetAllClientsRequest\x1a\x1e.user.v1.GetAllClientsResponse\x12T\n" +
 	"\x0fGetAllActuaries\x12\x1f.user.v1.GetAllActuariesRequest\x1a .user.v1.GetAllActuariesResponse\x12`\n" +
-	"\x13GetIdentityByUserId\x12#.user.v1.GetIdentityByUserIdRequest\x1a$.user.v1.GetIdentityByUserIdResponse\x12]\n" +
+	"\x13GetIdentityByUserId\x12#.user.v1.GetIdentityByUserIdRequest\x1a$.user.v1.GetIdentityByUserIdResponse\x12`\n" +
+	"\x13GetUserByIdentityId\x12#.user.v1.GetUserByIdentityIdRequest\x1a$.user.v1.GetUserByIdentityIdResponse\x12]\n" +
 	"\x12IncrementUsedLimit\x12\".user.v1.IncrementUsedLimitRequest\x1a#.user.v1.IncrementUsedLimitResponseB\x12Z\x10common/pkg/pb;pbb\x06proto3"
 
 var (
@@ -1189,7 +1301,7 @@ func file_common_proto_user_proto_rawDescGZIP() []byte {
 	return file_common_proto_user_proto_rawDescData
 }
 
-var file_common_proto_user_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_common_proto_user_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_common_proto_user_proto_goTypes = []any{
 	(*GetClientByIdRequest)(nil),           // 0: user.v1.GetClientByIdRequest
 	(*GetClientByIdentityIdRequest)(nil),   // 1: user.v1.GetClientByIdentityIdRequest
@@ -1207,8 +1319,10 @@ var file_common_proto_user_proto_goTypes = []any{
 	(*GetAllActuariesResponse)(nil),        // 13: user.v1.GetAllActuariesResponse
 	(*GetIdentityByUserIdRequest)(nil),     // 14: user.v1.GetIdentityByUserIdRequest
 	(*GetIdentityByUserIdResponse)(nil),    // 15: user.v1.GetIdentityByUserIdResponse
-	(*IncrementUsedLimitRequest)(nil),      // 16: user.v1.IncrementUsedLimitRequest
-	(*IncrementUsedLimitResponse)(nil),     // 17: user.v1.IncrementUsedLimitResponse
+	(*GetUserByIdentityIdRequest)(nil),     // 16: user.v1.GetUserByIdentityIdRequest
+	(*GetUserByIdentityIdResponse)(nil),    // 17: user.v1.GetUserByIdentityIdResponse
+	(*IncrementUsedLimitRequest)(nil),      // 18: user.v1.IncrementUsedLimitRequest
+	(*IncrementUsedLimitResponse)(nil),     // 19: user.v1.IncrementUsedLimitResponse
 }
 var file_common_proto_user_proto_depIdxs = []int32{
 	2,  // 0: user.v1.GetClientsByIdsResponse.clients:type_name -> user.v1.GetClientByIdResponse
@@ -1222,18 +1336,20 @@ var file_common_proto_user_proto_depIdxs = []int32{
 	8,  // 8: user.v1.UserService.GetAllClients:input_type -> user.v1.GetAllClientsRequest
 	11, // 9: user.v1.UserService.GetAllActuaries:input_type -> user.v1.GetAllActuariesRequest
 	14, // 10: user.v1.UserService.GetIdentityByUserId:input_type -> user.v1.GetIdentityByUserIdRequest
-	16, // 11: user.v1.UserService.IncrementUsedLimit:input_type -> user.v1.IncrementUsedLimitRequest
-	2,  // 12: user.v1.UserService.GetClientById:output_type -> user.v1.GetClientByIdResponse
-	4,  // 13: user.v1.UserService.GetClientsByIds:output_type -> user.v1.GetClientsByIdsResponse
-	2,  // 14: user.v1.UserService.GetClientByIdentityId:output_type -> user.v1.GetClientByIdResponse
-	7,  // 15: user.v1.UserService.GetEmployeeById:output_type -> user.v1.GetEmployeeByIdResponse
-	7,  // 16: user.v1.UserService.GetEmployeeByIdentityId:output_type -> user.v1.GetEmployeeByIdResponse
-	10, // 17: user.v1.UserService.GetAllClients:output_type -> user.v1.GetAllClientsResponse
-	13, // 18: user.v1.UserService.GetAllActuaries:output_type -> user.v1.GetAllActuariesResponse
-	15, // 19: user.v1.UserService.GetIdentityByUserId:output_type -> user.v1.GetIdentityByUserIdResponse
-	17, // 20: user.v1.UserService.IncrementUsedLimit:output_type -> user.v1.IncrementUsedLimitResponse
-	12, // [12:21] is the sub-list for method output_type
-	3,  // [3:12] is the sub-list for method input_type
+	16, // 11: user.v1.UserService.GetUserByIdentityId:input_type -> user.v1.GetUserByIdentityIdRequest
+	18, // 12: user.v1.UserService.IncrementUsedLimit:input_type -> user.v1.IncrementUsedLimitRequest
+	2,  // 13: user.v1.UserService.GetClientById:output_type -> user.v1.GetClientByIdResponse
+	4,  // 14: user.v1.UserService.GetClientsByIds:output_type -> user.v1.GetClientsByIdsResponse
+	2,  // 15: user.v1.UserService.GetClientByIdentityId:output_type -> user.v1.GetClientByIdResponse
+	7,  // 16: user.v1.UserService.GetEmployeeById:output_type -> user.v1.GetEmployeeByIdResponse
+	7,  // 17: user.v1.UserService.GetEmployeeByIdentityId:output_type -> user.v1.GetEmployeeByIdResponse
+	10, // 18: user.v1.UserService.GetAllClients:output_type -> user.v1.GetAllClientsResponse
+	13, // 19: user.v1.UserService.GetAllActuaries:output_type -> user.v1.GetAllActuariesResponse
+	15, // 20: user.v1.UserService.GetIdentityByUserId:output_type -> user.v1.GetIdentityByUserIdResponse
+	17, // 21: user.v1.UserService.GetUserByIdentityId:output_type -> user.v1.GetUserByIdentityIdResponse
+	19, // 22: user.v1.UserService.IncrementUsedLimit:output_type -> user.v1.IncrementUsedLimitResponse
+	13, // [13:23] is the sub-list for method output_type
+	3,  // [3:13] is the sub-list for method input_type
 	3,  // [3:3] is the sub-list for extension type_name
 	3,  // [3:3] is the sub-list for extension extendee
 	0,  // [0:3] is the sub-list for field type_name
@@ -1250,7 +1366,7 @@ func file_common_proto_user_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_common_proto_user_proto_rawDesc), len(file_common_proto_user_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   18,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

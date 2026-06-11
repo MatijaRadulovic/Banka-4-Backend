@@ -95,3 +95,18 @@ func GetSubjectFromContext(ctx context.Context) (uint, error) {
 
 	return 0, errors.ForbiddenErr("access denied for this identity type")
 }
+
+// GetIdentityIDFromContext resolves the authenticated identity id (Identity.ID)
+// from stdlib context. Unlike GetSubjectFromContext this is the single global id
+// shared across clients and employees — use it wherever a user id crosses the
+// cross-bank wire so it stays unambiguous between banks.
+func GetIdentityIDFromContext(ctx context.Context) (uint, error) {
+	authCtx := GetAuthFromContext(ctx)
+	if authCtx == nil {
+		return 0, errors.UnauthorizedErr("not authenticated")
+	}
+	if authCtx.IdentityID == 0 {
+		return 0, errors.UnauthorizedErr("not authenticated")
+	}
+	return authCtx.IdentityID, nil
+}

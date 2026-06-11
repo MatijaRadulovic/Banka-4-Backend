@@ -30,7 +30,7 @@ func NewInterbankCashService(
 	}
 }
 
-func (s *InterbankCashService) Prepare(ctx context.Context, postingID, accountNumber string, clientID uint, currencyCode model.CurrencyCode, amount float64) (*model.InterbankCashPosting, error) {
+func (s *InterbankCashService) Prepare(ctx context.Context, postingID, accountNumber string, clientID uint, currencyCode model.CurrencyCode, amount float64, userType string) (*model.InterbankCashPosting, error) {
 	postingID = strings.TrimSpace(postingID)
 	accountNumber = strings.TrimSpace(accountNumber)
 	if postingID == "" {
@@ -57,7 +57,7 @@ func (s *InterbankCashService) Prepare(ctx context.Context, postingID, accountNu
 			return nil
 		}
 
-		account, err := s.resolveAccount(ctx, accountNumber, clientID, currencyCode)
+		account, err := s.resolveAccount(ctx, accountNumber, clientID, currencyCode, userType)
 		if err != nil {
 			return err
 		}
@@ -210,7 +210,7 @@ func (s *InterbankCashService) transition(
 // (PERSON / OTC postings) an active account is chosen by tier: first one whose
 // currency matches the posting, else the client's active RSD account, else any
 // active account.
-func (s *InterbankCashService) resolveAccount(ctx context.Context, accountNumber string, clientID uint, currencyCode model.CurrencyCode) (*model.Account, error) {
+func (s *InterbankCashService) resolveAccount(ctx context.Context, accountNumber string, clientID uint, currencyCode model.CurrencyCode, userType string) (*model.Account, error) {
 	if accountNumber != "" {
 		account, err := s.accountRepo.FindByAccountNumber(ctx, accountNumber)
 		if err != nil {
@@ -218,6 +218,24 @@ func (s *InterbankCashService) resolveAccount(ctx context.Context, accountNumber
 		}
 		if account == nil {
 			return nil, commonerrors.NotFoundErr("account not found")
+		}
+		return account, nil
+	}
+
+	// EMPLOYEE party means the bank itself (acting through an employee). The bank
+	// has no per-client account — money moves through its Firma account for the
+	// currency, the same account used for commissions/fees.
+	if userType == "EMPLOYEE" {
+		bankAccountNumber, ok := BankAccounts[currencyCode]
+		if !ok {
+			return nil, commonerrors.BadRequestErr("no bank account for this currency")
+		}
+		account, err := s.accountRepo.FindByAccountNumber(ctx, bankAccountNumber)
+		if err != nil {
+			return nil, commonerrors.InternalErr(err)
+		}
+		if account == nil {
+			return nil, commonerrors.NotFoundErr("bank account not found")
 		}
 		return account, nil
 	}

@@ -18,3 +18,7 @@ func NewUserClient(conn *client.UserServiceConn) client.UserClient {
 func (u *userClient) GetClientByID(ctx context.Context, id uint64) (*pb.GetClientByIdResponse, error) {
 	return u.c.GetClientById(ctx, &pb.GetClientByIdRequest{Id: id})
 }
+
+func (u *userClient) GetUserByIdentityID(ctx context.Context, identityID uint64) (*pb.GetUserByIdentityIdResponse, error) {
+	return u.c.GetUserByIdentityId(ctx, &pb.GetUserByIdentityIdRequest{IdentityId: identityID})
+}

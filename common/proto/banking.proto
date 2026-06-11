@@ -151,6 +151,7 @@ message PrepareInterbankCashPostingRequest {
   uint64 client_id = 3;
   string currency_code = 4;
   double amount = 5;
+  string user_type = 6;   // "CLIENT" | "EMPLOYEE"
 }
 
 message InterbankCashPostingRequest {

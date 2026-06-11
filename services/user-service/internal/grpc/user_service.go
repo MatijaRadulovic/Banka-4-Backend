@@ -143,6 +143,34 @@ func (s *UserService) GetEmployeeByIdentityID(ctx context.Context, req *pb.GetEm
 	return resp, nil
 }
 
+func (s *UserService) GetUserByIdentityId(ctx context.Context, req *pb.GetUserByIdentityIdRequest) (*pb.GetUserByIdentityIdResponse, error) {
+	client, err := s.clientRepo.FindByIdentityID(ctx, uint(req.IdentityId))
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to fetch client: %v", err)
+	}
+	if client != nil {
+		return &pb.GetUserByIdentityIdResponse{
+			FullName: client.FirstName + " " + client.LastName,
+			UserType: "CLIENT",
+			UserId:   uint64(client.ClientID),
+		}, nil
+	}
+
+	employee, err := s.employeeRepo.FindByIdentityID(ctx, uint(req.IdentityId))
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to fetch employee: %v", err)
+	}
+	if employee != nil {
+		return &pb.GetUserByIdentityIdResponse{
+			FullName: employee.FirstName + " " + employee.LastName,
+			UserType: "EMPLOYEE",
+			UserId:   uint64(employee.EmployeeID),
+		}, nil
+	}
+
+	return nil, status.Errorf(codes.NotFound, "user with identity_id %d not found", req.IdentityId)
+}
+
 func (s *UserService) GetAllClients(ctx context.Context, req *pb.GetAllClientsRequest) (*pb.GetAllClientsResponse, error) {
 	query := &dto.ListClientsQuery{
 		FirstName: req.FirstName,

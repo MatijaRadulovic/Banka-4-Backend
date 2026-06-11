@@ -310,6 +310,7 @@ type ReservePeerOtcSharesRequest struct {
 	SellerId      uint64                 `protobuf:"varint,2,opt,name=seller_id,json=sellerId,proto3" json:"seller_id,omitempty"`
 	Ticker        string                 `protobuf:"bytes,3,opt,name=ticker,proto3" json:"ticker,omitempty"`
 	Amount        float64                `protobuf:"fixed64,4,opt,name=amount,proto3" json:"amount,omitempty"`
+	UserType      string                 `protobuf:"bytes,5,opt,name=user_type,json=userType,proto3" json:"user_type,omitempty"` // "CLIENT" | "EMPLOYEE"
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -370,6 +371,13 @@ func (x *ReservePeerOtcSharesRequest) GetAmount() float64 {
 		return x.Amount
 	}
 	return 0
+}
+
+func (x *ReservePeerOtcSharesRequest) GetUserType() string {
+	if x != nil {
+		return x.UserType
+	}
+	return ""
 }
 
 type ReleasePeerOtcSharesRequest struct {
@@ -467,6 +475,7 @@ type CreditPeerOtcSharesRequest struct {
 	Ticker          string                 `protobuf:"bytes,3,opt,name=ticker,proto3" json:"ticker,omitempty"`
 	Amount          float64                `protobuf:"fixed64,4,opt,name=amount,proto3" json:"amount,omitempty"`
 	PricePerUnitRsd float64                `protobuf:"fixed64,5,opt,name=price_per_unit_rsd,json=pricePerUnitRsd,proto3" json:"price_per_unit_rsd,omitempty"`
+	UserType        string                 `protobuf:"bytes,6,opt,name=user_type,json=userType,proto3" json:"user_type,omitempty"` // "CLIENT" | "EMPLOYEE"
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -534,6 +543,13 @@ func (x *CreditPeerOtcSharesRequest) GetPricePerUnitRsd() float64 {
 		return x.PricePerUnitRsd
 	}
 	return 0
+}
+
+func (x *CreditPeerOtcSharesRequest) GetUserType() string {
+	if x != nil {
+		return x.UserType
+	}
+	return ""
 }
 
 type PeerOtcSharesResponse struct {
@@ -607,26 +623,28 @@ const file_common_proto_trading_proto_rawDesc = "" +
 	"\x06ticker\x18\x01 \x01(\tR\x06ticker\x127\n" +
 	"\asellers\x18\x02 \x03(\v2\x1d.trading.v1.PublicStockSellerR\asellers\"P\n" +
 	"\x18ListPublicStocksResponse\x124\n" +
-	"\x06stocks\x18\x01 \x03(\v2\x1c.trading.v1.PublicStockEntryR\x06stocks\"\x8b\x01\n" +
+	"\x06stocks\x18\x01 \x03(\v2\x1c.trading.v1.PublicStockEntryR\x06stocks\"\xa8\x01\n" +
 	"\x1bReservePeerOtcSharesRequest\x12\x1f\n" +
 	"\vcontract_id\x18\x01 \x01(\tR\n" +
 	"contractId\x12\x1b\n" +
 	"\tseller_id\x18\x02 \x01(\x04R\bsellerId\x12\x16\n" +
 	"\x06ticker\x18\x03 \x01(\tR\x06ticker\x12\x16\n" +
-	"\x06amount\x18\x04 \x01(\x01R\x06amount\">\n" +
+	"\x06amount\x18\x04 \x01(\x01R\x06amount\x12\x1b\n" +
+	"\tuser_type\x18\x05 \x01(\tR\buserType\">\n" +
 	"\x1bReleasePeerOtcSharesRequest\x12\x1f\n" +
 	"\vcontract_id\x18\x01 \x01(\tR\n" +
 	"contractId\">\n" +
 	"\x1bConsumePeerOtcSharesRequest\x12\x1f\n" +
 	"\vcontract_id\x18\x01 \x01(\tR\n" +
-	"contractId\"\xb5\x01\n" +
+	"contractId\"\xd2\x01\n" +
 	"\x1aCreditPeerOtcSharesRequest\x12\x1f\n" +
 	"\vcontract_id\x18\x01 \x01(\tR\n" +
 	"contractId\x12\x19\n" +
 	"\bbuyer_id\x18\x02 \x01(\x04R\abuyerId\x12\x16\n" +
 	"\x06ticker\x18\x03 \x01(\tR\x06ticker\x12\x16\n" +
 	"\x06amount\x18\x04 \x01(\x01R\x06amount\x12+\n" +
-	"\x12price_per_unit_rsd\x18\x05 \x01(\x01R\x0fpricePerUnitRsd\"P\n" +
+	"\x12price_per_unit_rsd\x18\x05 \x01(\x01R\x0fpricePerUnitRsd\x12\x1b\n" +
+	"\tuser_type\x18\x06 \x01(\tR\buserType\"P\n" +
 	"\x15PeerOtcSharesResponse\x12\x1f\n" +
 	"\vcontract_id\x18\x01 \x01(\tR\n" +
 	"contractId\x12\x16\n" +

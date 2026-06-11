@@ -56,7 +56,7 @@ func newProcessor(banking *fakeBanking, trading *fakeTrading) (*MessageProcessor
 	peers := testResolver(ourRouting)
 	p := NewMessageProcessor(
 		inbound, prepared, newFakeOutbound(), fakeTxManager{}, peers,
-		banking, trading, newFakeContracts(), newFakeNegotiations(),
+		banking, trading, newFakeContracts(), newFakeNegotiations(), &fakeUserClient{},
 	)
 	return p, inbound, prepared
 }
