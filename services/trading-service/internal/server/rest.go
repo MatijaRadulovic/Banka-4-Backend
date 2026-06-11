@@ -51,7 +51,7 @@ func NewServer(
 
 	InitRouter(r, cfg)
 
-	SetupRoutes(r, healthHandler, taxHandler, exchangeHandler, orderHandler, portfolioHandler, listingHandler, otcHandler, otcOfferHandler, fundHandler, watchlistHandler, recurringOrderHandler, dividendHandler, priceAlertHandler, verifier, permProvider, userClient)
+	SetupRoutes(r, healthHandler, taxHandler, exchangeHandler, orderHandler, portfolioHandler, listingHandler, otcHandler, otcOfferHandler, fundHandler, watchlistHandler, otcNegotiationHistoryHandler, recurringOrderHandler, dividendHandler, priceAlertHandler, verifier, permProvider, userClient)
 
 	server := &http.Server{
 		Addr:    ":" + cfg.Port,
@@ -91,6 +91,7 @@ func SetupRoutes(
 	otcOfferHandler *handler.OtcOfferHandler,
 	fundHandler *handler.InvestmentFundHandler,
 	watchlistHandler *handler.WatchlistHandler,
+	otcNegotiationHistoryHandler *handler.OtcNegotiationHistoryHandler,
 	recurringOrderHandler *handler.RecurringOrderHandler,
 	dividendHandler *handler.DividendHandler,
 	priceAlertHandler *handler.PriceAlertHandler,

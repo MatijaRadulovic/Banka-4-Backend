@@ -203,6 +203,22 @@ definitions:
     - price_per_stock_rsd
     - settlement_date
     type: object
+  dto.CreatePriceAlertRequest:
+    properties:
+      condition:
+        enum:
+        - ABOVE
+        - BELOW
+        type: string
+      listing_id:
+        type: integer
+      threshold:
+        type: number
+    required:
+    - condition
+    - listing_id
+    - threshold
+    type: object
   dto.CreateRecurringOrderRequest:
     properties:
       account_number:
@@ -1029,6 +1045,27 @@ definitions:
     properties:
       total_profit_rsd:
         type: number
+    type: object
+  dto.PriceAlertResponse:
+    properties:
+      condition:
+        type: string
+      created_at:
+        type: string
+      is_active:
+        type: boolean
+      listing_id:
+        type: integer
+      notification_type:
+        type: string
+      price_alert_id:
+        type: integer
+      threshold:
+        type: number
+      ticker:
+        type: string
+      triggered_at:
+        type: string
     type: object
   dto.PublishAssetRequest:
     properties:
@@ -3338,6 +3375,99 @@ paths:
       summary: List dividend payouts for a portfolio position
       tags:
       - dividends
+  /api/price-alerts:
+    get:
+      description: Lists every price alert owned by the authenticated user (active
+        and already-triggered ones).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.PriceAlertResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errors.AppError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/errors.AppError'
+      security:
+      - BearerAuth: []
+      summary: List my price alerts
+      tags:
+      - price-alerts
+    post:
+      consumes:
+      - application/json
+      description: Creates a one-shot price alert for the authenticated user. When
+        the listing's current price crosses the threshold in the configured direction,
+        the user receives an email and the alert auto-deactivates.
+      parameters:
+      - description: Alert definition
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreatePriceAlertRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.PriceAlertResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/errors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Create a price alert
+      tags:
+      - price-alerts
+  /api/price-alerts/{priceAlertId}:
+    delete:
+      description: Deletes one of the authenticated user's price alerts. Other users'
+        alerts return 404 (the resource is hidden, not refused with 403).
+      parameters:
+      - description: Price alert id
+        in: path
+        name: priceAlertId
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errors.AppError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/errors.AppError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/errors.AppError'
+      security:
+      - BearerAuth: []
+      summary: Delete a price alert
+      tags:
+      - price-alerts
   /api/profit/actuaries:
     get:
       consumes:
