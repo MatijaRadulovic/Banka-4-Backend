@@ -93,6 +93,27 @@ func (s *OtcTaxService) RecordExerciseTax(ctx context.Context, contract *model.O
 	return s.taxRecorder.RecordTax(ctx, contract.BuyerAccountNumber, nil, taxableBase, "RSD")
 }
 
+// RecordExpiryLoss applies the buyer's tax relief when an OTC option expires
+// unexercised. The lost premium is a capital loss for the period, so it lowers the
+// buyer's capital-gains tax by 15% of the premium (clamped at zero — a loss with no
+// offsetting gains yields no refund). The seller keeps the premium tax already
+// charged at contract creation, and actuaries are unaffected (they pay no tax).
+func (s *OtcTaxService) RecordExpiryLoss(ctx context.Context, contract *model.OtcOptionContract) error {
+	if contract == nil || contract.PremiumRSD <= 0 {
+		return nil
+	}
+
+	actuary, err := s.isActuary(ctx, contract.BuyerID)
+	if err != nil {
+		return err
+	}
+	if actuary {
+		return nil
+	}
+
+	return s.taxRecorder.ReduceTax(ctx, contract.BuyerAccountNumber, nil, contract.PremiumRSD)
+}
+
 // marketPriceRSD resolves the current market price of a stock (by asset id) in RSD.
 func (s *OtcTaxService) marketPriceRSD(ctx context.Context, stockAssetID uint) (float64, error) {
 	stocks, err := s.stockRepo.FindByAssetIDs(ctx, []uint{stockAssetID})

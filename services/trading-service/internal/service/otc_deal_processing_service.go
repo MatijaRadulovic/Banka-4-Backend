@@ -805,7 +805,8 @@ func (s *OtcDealProcessingService) releaseAndFail(ctx context.Context, execution
 // expireContract locks an OTC contract and expires it if it is still active and
 // its settlement time has already passed.
 func (s *OtcDealProcessingService) expireContract(ctx context.Context, contractID uint) error {
-	return s.txManager.WithinTransaction(ctx, func(ctx context.Context) error {
+	expired := false
+	err := s.txManager.WithinTransaction(ctx, func(ctx context.Context) error {
 		contract, err := s.optionContractRepo.FindByIDForUpdate(ctx, contractID)
 		if err != nil {
 			return appErrors.InternalErr(err)
@@ -819,8 +820,29 @@ func (s *OtcDealProcessingService) expireContract(ctx context.Context, contractI
 			return nil
 		}
 
-		return s.expireLockedContract(ctx, contract)
+		if err := s.expireLockedContract(ctx, contract); err != nil {
+			return err
+		}
+		expired = true
+		return nil
 	})
+	if err != nil {
+		return err
+	}
+
+	// Contract expired unexercised — the buyer's lost premium offsets their
+	// capital-gains tax for the period. Best-effort and outside the transaction so a
+	// tax-recording failure never reverts the expiry (same pattern as premium/exercise tax).
+	if expired && s.otcTaxService != nil {
+		contract, fetchErr := s.optionContractRepo.FindByID(ctx, contractID)
+		if fetchErr != nil {
+			log.Printf("[otc-tax] failed to load expired contract %d for loss offset: %v", contractID, fetchErr)
+		} else if taxErr := s.otcTaxService.RecordExpiryLoss(ctx, contract); taxErr != nil {
+			log.Printf("[otc-tax] failed to record expiry loss for contract %d: %v", contractID, taxErr)
+		}
+	}
+
+	return nil
 }
 
 // validateContractForExecution verifies that the contract is still active and

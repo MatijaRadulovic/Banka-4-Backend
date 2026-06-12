@@ -168,6 +168,49 @@ func TestOtcTaxService_RecordExerciseTax_PremiumWipesGainNoTax(t *testing.T) {
 	require.False(t, rec.called)
 }
 
+// ── Expiry loss (buyer) ────────────────────────────────────────────
+
+func TestOtcTaxService_RecordExpiryLoss_ClientGetsRelief(t *testing.T) {
+	rec := &fakeTaxRecorder{}
+	svc := newOtcTaxServiceForTest(rec, false, nil)
+
+	// Spec primer: kupac platio premiju $1150, opcija istekla -> gubitak 1150
+	// umanjuje porez (ReduceTax dobija osnovicu 1150; -15% = 172.50 od akumuliranog).
+	contract := &model.OtcOptionContract{
+		BuyerID:            9,
+		BuyerAccountNumber: "buyer-acc",
+		PremiumRSD:         1150,
+	}
+
+	require.NoError(t, svc.RecordExpiryLoss(context.Background(), contract))
+
+	require.True(t, rec.reduceCalled)
+	require.Equal(t, "buyer-acc", rec.reducedAccountNumber)
+	require.Equal(t, 1150.0, rec.reducedLossBase)
+}
+
+func TestOtcTaxService_RecordExpiryLoss_ActuaryUnaffected(t *testing.T) {
+	rec := &fakeTaxRecorder{}
+	svc := newOtcTaxServiceForTest(rec, true, nil)
+
+	contract := &model.OtcOptionContract{
+		BuyerID:            9,
+		BuyerAccountNumber: "buyer-acc",
+		PremiumRSD:         1150,
+	}
+
+	require.NoError(t, svc.RecordExpiryLoss(context.Background(), contract))
+	require.False(t, rec.reduceCalled, "actuaries pay no tax, so nothing to reduce")
+}
+
+func TestOtcTaxService_RecordExpiryLoss_ZeroPremiumNoop(t *testing.T) {
+	rec := &fakeTaxRecorder{}
+	svc := newOtcTaxServiceForTest(rec, false, nil)
+
+	require.NoError(t, svc.RecordExpiryLoss(context.Background(), &model.OtcOptionContract{PremiumRSD: 0}))
+	require.False(t, rec.reduceCalled)
+}
+
 func TestOtcTaxService_RecordExerciseTax_ConvertsForeignCurrency(t *testing.T) {
 	rec := &fakeTaxRecorder{}
 	// processingBankingClient.ConvertCurrency is 1:1, so a USD-priced listing of

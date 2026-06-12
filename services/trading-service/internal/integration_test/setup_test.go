@@ -209,6 +209,10 @@ func (f *fakeTaxRecorder) RecordTax(_ context.Context, _ string, _ *uint, _ floa
 	return nil
 }
 
+func (f *fakeTaxRecorder) ReduceTax(_ context.Context, _ string, _ *uint, _ float64) error {
+	return nil
+}
+
 type fakeBankingClient struct {
 	accountByNumber map[string]uint64
 }
