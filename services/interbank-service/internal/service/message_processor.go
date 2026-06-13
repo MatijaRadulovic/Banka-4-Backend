@@ -547,7 +547,7 @@ func (p *MessageProcessor) prepareOptionPosting(ctx context.Context, tx *dto.Tra
 	if option.NegotiationID.RoutingNumber != p.peers.OurRoutingNumber() {
 		return nil, dto.ReasonUnacceptableAsset, fmt.Errorf("routing number mismatch")
 	}
-	negotiation, err := p.negotiations.FindByID(ctx, option.NegotiationID.ID)
+	negotiation, err := p.negotiations.FindByID(ctx, option.NegotiationID.RoutingNumber, option.NegotiationID.ID)
 	if err != nil {
 		return nil, dto.ReasonOptionNegotiationNotFound, err
 	}
@@ -644,7 +644,7 @@ func (p *MessageProcessor) commitOptionPosting(ctx context.Context, tx *dto.Tran
 			return nil
 		}
 
-		negotiation, err := p.negotiations.FindByID(ctx, option.NegotiationID.ID)
+		negotiation, err := p.negotiations.FindByID(ctx, option.NegotiationID.RoutingNumber, option.NegotiationID.ID)
 		if err != nil || negotiation == nil {
 			return err
 		}

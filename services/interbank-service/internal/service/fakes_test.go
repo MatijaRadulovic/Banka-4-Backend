@@ -326,20 +326,23 @@ func newFakeNegotiations() *fakeNegotiations {
 	return &fakeNegotiations{rows: map[string]model.PeerNegotiation{}}
 }
 
+func negotiationKey(routing int, id string) string { return fmt.Sprintf("%d|%s", routing, id) }
+
 func (r *fakeNegotiations) Create(_ context.Context, n *model.PeerNegotiation) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if _, exists := r.rows[n.ID]; exists {
-		return fmt.Errorf("duplicate negotiation %s", n.ID)
+	k := negotiationKey(n.SellerRoutingNumber, n.ID)
+	if _, exists := r.rows[k]; exists {
+		return fmt.Errorf("duplicate negotiation %s", k)
 	}
-	r.rows[n.ID] = *n
+	r.rows[k] = *n
 	return nil
 }
 
-func (r *fakeNegotiations) FindByID(_ context.Context, id string) (*model.PeerNegotiation, error) {
+func (r *fakeNegotiations) FindByID(_ context.Context, routingNumber int, id string) (*model.PeerNegotiation, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	row, ok := r.rows[id]
+	row, ok := r.rows[negotiationKey(routingNumber, id)]
 	if !ok {
 		return nil, nil
 	}
@@ -347,14 +350,14 @@ func (r *fakeNegotiations) FindByID(_ context.Context, id string) (*model.PeerNe
 	return &cp, nil
 }
 
-func (r *fakeNegotiations) FindByIDForUpdate(ctx context.Context, id string) (*model.PeerNegotiation, error) {
-	return r.FindByID(ctx, id)
+func (r *fakeNegotiations) FindByIDForUpdate(ctx context.Context, routingNumber int, id string) (*model.PeerNegotiation, error) {
+	return r.FindByID(ctx, routingNumber, id)
 }
 
 func (r *fakeNegotiations) Update(_ context.Context, n *model.PeerNegotiation) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.rows[n.ID] = *n
+	r.rows[negotiationKey(n.SellerRoutingNumber, n.ID)] = *n
 	return nil
 }
 
@@ -386,7 +389,7 @@ func (r *fakeNegotiations) FindOngoing(_ context.Context) ([]model.PeerNegotiati
 func (r *fakeNegotiations) seed(n model.PeerNegotiation) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.rows[n.ID] = n
+	r.rows[negotiationKey(n.SellerRoutingNumber, n.ID)] = n
 }
 
 // ---------------------------------------------------------------------------

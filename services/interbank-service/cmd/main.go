@@ -89,13 +89,16 @@ func main() {
 			return logging.Init(cfg.Env)
 		}),
 		fx.Invoke(func(db *gorm.DB) error {
-			return db.AutoMigrate(
+			if err := db.AutoMigrate(
 				&model.InboundMessage{},
 				&model.OutboundMessage{},
 				&model.PreparedTransaction{},
 				&model.PeerNegotiation{},
 				&model.PeerContract{},
-			)
+			); err != nil {
+				return err
+			}
+			return migratePeerNegotiationPK(db)
 		}),
 		fx.Invoke(func(lc fx.Lifecycle, worker *job.OutboxWorker) {
 			lc.Append(fx.Hook{
@@ -112,4 +115,21 @@ func main() {
 		fx.Invoke(server.NewServer),
 		fx.Invoke(server.NewGRPCServer),
 	).Run()
+}
+
+// migratePeerNegotiationPK upgrades the interbank_peer_negotiations primary key
+// from the old single-column (id) to the composite (seller_routing_number, id).
+func migratePeerNegotiationPK(db *gorm.DB) error {
+	return db.Exec(`
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'interbank_peer_negotiations_pkey'
+      AND array_length(conkey, 1) = 1
+  ) THEN
+    ALTER TABLE interbank_peer_negotiations DROP CONSTRAINT interbank_peer_negotiations_pkey;
+    ALTER TABLE interbank_peer_negotiations ADD PRIMARY KEY (seller_routing_number, id);
+  END IF;
+END $$;`).Error
 }

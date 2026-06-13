@@ -21,8 +21,13 @@ const (
 // same-bank OtcOffer
 //
 // Identification follows spec §3.2: the ID is an opaque string assigned by
-// the seller's bank (the authoritative party). Both banks store the same ID —
-// the buyer's mirror row uses the seller-assigned ID directly.
+// the seller's bank (the authoritative party). That id is only unique within
+// the seller bank's namespace, so the negotiation is globally keyed by the
+// protocol's ForeignBankId pair — here the composite primary key
+// (SellerRoutingNumber, ID), the seller's bank always being authoritative.
+// Both banks store the same pair — the buyer's mirror row uses the
+// seller-assigned (routing, id) directly. This mirrors PreparedTransaction and
+// PeerContract, which key on (RoutingNumber, ID) too.
 //
 // Each party — buyer, seller, last-modifier — is encoded as the protocol's
 // ForeignBankId pair (routing number + opaque id). A row may represent a
@@ -30,13 +35,15 @@ const (
 // or any cross-bank combination.
 type PeerNegotiation struct {
 	// ID is the negotiation identifier assigned by the seller's bank (§3.2).
-	// Both authoritative and mirror rows use this same value.
+	// Both authoritative and mirror rows use this same value. Unique only when
+	// paired with SellerRoutingNumber — see the composite primary key below.
 	ID string `gorm:"primaryKey;size:64;column:id"`
 
-	// Parties — flat (routing, id) encoding of ForeignBankId.
+	// Parties — flat (routing, id) encoding of ForeignBankId. SellerRoutingNumber
+	// is the authoritative bank and forms the other half of the primary key.
 	BuyerRoutingNumber  int    `gorm:"not null;index;column:buyer_routing_number"`
 	BuyerID             string `gorm:"not null;size:64;column:buyer_id"`
-	SellerRoutingNumber int    `gorm:"not null;index;column:seller_routing_number"`
+	SellerRoutingNumber int    `gorm:"primaryKey;index;column:seller_routing_number"`
 	SellerID            string `gorm:"not null;size:64;column:seller_id"`
 
 	// Offer contents (§3.2 OtcOffer body).
