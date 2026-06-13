@@ -89,16 +89,19 @@ func main() {
 			return logging.Init(cfg.Env)
 		}),
 		fx.Invoke(func(db *gorm.DB) error {
-			if err := db.AutoMigrate(
+			// Must run before AutoMigrate: existing databases may still have the old
+			// single-column PK on (id) which must be replaced with the composite
+			// (seller_routing_number, id) before GORM tries to reconcile the schema.
+			if err := migratePeerNegotiationPK(db); err != nil {
+				return err
+			}
+			return db.AutoMigrate(
 				&model.InboundMessage{},
 				&model.OutboundMessage{},
 				&model.PreparedTransaction{},
 				&model.PeerNegotiation{},
 				&model.PeerContract{},
-			); err != nil {
-				return err
-			}
-			return migratePeerNegotiationPK(db)
+			)
 		}),
 		fx.Invoke(func(lc fx.Lifecycle, worker *job.OutboxWorker) {
 			lc.Append(fx.Hook{
