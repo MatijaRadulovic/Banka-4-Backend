@@ -24,8 +24,12 @@ func Init(env string) error {
 	} else {
 		log, err = zap.NewDevelopment()
 	}
+	if err != nil {
+		return err
+	}
 
-	return err
+	zap.ReplaceGlobals(log)
+	return nil
 }
 
 // Logger returns a Gin middleware that logs incoming HTTP requests.
