@@ -11,8 +11,10 @@ import (
 // users' outbound traffic.
 type PeerNegotiationRepository interface {
 	Create(ctx context.Context, n *model.PeerNegotiation) error
-	FindByID(ctx context.Context, id string) (*model.PeerNegotiation, error)
-	FindByIDForUpdate(ctx context.Context, id string) (*model.PeerNegotiation, error)
+	// FindByID / FindByIDForUpdate key on the negotiation's full identity
+	// (authoritative seller routing number + id); id alone is not unique.
+	FindByID(ctx context.Context, routingNumber int, id string) (*model.PeerNegotiation, error)
+	FindByIDForUpdate(ctx context.Context, routingNumber int, id string) (*model.PeerNegotiation, error)
 	Update(ctx context.Context, n *model.PeerNegotiation) error
 	ListByParty(ctx context.Context, routingNumber int, partyID string) ([]model.PeerNegotiation, error)
 	// FindOngoing returns all ONGOING negotiations. Settlement-date expiry is

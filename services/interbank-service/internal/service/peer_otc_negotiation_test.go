@@ -141,7 +141,7 @@ func TestSendCounterOfferAsLocal_SellerSide(t *testing.T) {
 	require.Equal(t, []string{"PUT /negotiations/444/neg-seller"}, bank.otcGot())
 
 	// Local authoritative row reflects the counter and that we moved last.
-	updated, _ := negs.FindByID(context.Background(), "neg-seller")
+	updated, _ := negs.FindByID(context.Background(), ourRouting, "neg-seller")
 	require.Equal(t, 90.0, updated.PricePerStock)
 	require.Equal(t, ourRouting, updated.LastModifiedByRouting)
 	require.Equal(t, "7", updated.LastModifiedByID)
@@ -154,7 +154,7 @@ func TestSendCounterOfferAsLocal_SellerCannotCounterTwice(t *testing.T) {
 	seedAuthoritativeNegotiation(negs, "neg-turn")
 
 	// Make the seller the last modifier → it is now the buyer's turn.
-	row, _ := negs.FindByID(context.Background(), "neg-turn")
+	row, _ := negs.FindByID(context.Background(), ourRouting, "neg-turn")
 	row.LastModifiedByRouting = ourRouting
 	row.LastModifiedByID = "7"
 	_ = negs.Update(context.Background(), row)
@@ -210,7 +210,7 @@ func specOffer(n *model.PeerNegotiation, lastModifiedBy dto.ForeignBankId, price
 func TestUpdateCounter_AcceptsMirrorRowFromSeller(t *testing.T) {
 	svc, negs := newOtcSvc(testResolver(ourRouting))
 	seedMirrorNegotiation(negs, "neg-mirror")
-	n, _ := negs.FindByID(context.Background(), "neg-mirror")
+	n, _ := negs.FindByID(context.Background(), 111, "neg-mirror")
 
 	// The seller's bank (routing 111) notifies us of the seller's counter. The
 	// path rn is the authoritative (seller's) routing number 111.
@@ -220,7 +220,7 @@ func TestUpdateCounter_AcceptsMirrorRowFromSeller(t *testing.T) {
 	err := svc.UpdateCounter(context.Background(), 111, 111, "neg-mirror", offer)
 	require.NoError(t, err)
 
-	updated, _ := negs.FindByID(context.Background(), "neg-mirror")
+	updated, _ := negs.FindByID(context.Background(), 111, "neg-mirror")
 	require.Equal(t, 180.0, updated.PricePerStock)
 	require.Equal(t, 111, updated.LastModifiedByRouting)
 	require.Equal(t, "seller-1", updated.LastModifiedByID)
@@ -234,7 +234,7 @@ func TestClose_AcceptsMirrorRow(t *testing.T) {
 	err := svc.Close(context.Background(), 111, 111, "neg-close")
 	require.NoError(t, err)
 
-	updated, _ := negs.FindByID(context.Background(), "neg-close")
+	updated, _ := negs.FindByID(context.Background(), 111, "neg-close")
 	require.Equal(t, model.PeerNegotiationCancelled, updated.Status)
 }
 
@@ -302,7 +302,7 @@ func TestCreateFromPeer_SpecShapedOffer(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, ourRouting, id.RoutingNumber)
 
-	stored, _ := negs.FindByID(context.Background(), id.ID)
+	stored, _ := negs.FindByID(context.Background(), id.RoutingNumber, id.ID)
 	require.NotNil(t, stored)
 	require.Equal(t, "AAPL", stored.Ticker)
 	require.Equal(t, 100.0, stored.PricePerStock)

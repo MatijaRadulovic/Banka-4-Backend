@@ -199,6 +199,9 @@ func main() {
 // just create, so they linger in existing databases and reject inter-bank
 // payments whose counterparty account lives at another bank (SQLSTATE 23503).
 func dropStaleTransactionConstraints(db *gorm.DB) error {
+	if !db.Migrator().HasTable("transactions") {
+		return nil
+	}
 	for _, constraint := range []string{
 		"fk_accounts_transactions_payer",
 		"fk_accounts_transactions_recipient",

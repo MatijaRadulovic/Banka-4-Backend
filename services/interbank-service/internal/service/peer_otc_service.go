@@ -114,7 +114,7 @@ func (s *PeerOtcService) GetByID(ctx context.Context, routingNumber int, id stri
 		return nil, errors.BadRequestErr("routingNumber does not match this bank")
 	}
 
-	n, err := s.negotiations.FindByID(ctx, id)
+	n, err := s.negotiations.FindByID(ctx, routingNumber, id)
 	if err != nil {
 		return nil, errors.InternalErr(err)
 	}
@@ -144,7 +144,7 @@ func (s *PeerOtcService) UpdateCounter(ctx context.Context, senderRouting, routi
 	}
 
 	return s.txManager.WithinTransaction(ctx, func(ctx context.Context) error {
-		n, err := s.negotiations.FindByIDForUpdate(ctx, id)
+		n, err := s.negotiations.FindByIDForUpdate(ctx, routingNumber, id)
 		if err != nil {
 			return errors.InternalErr(err)
 		}
@@ -200,7 +200,7 @@ func (s *PeerOtcService) UpdateCounter(ctx context.Context, senderRouting, routi
 // negotiation returns success without changing state.
 func (s *PeerOtcService) Close(ctx context.Context, senderRouting, routingNumber int, id string) error {
 	return s.txManager.WithinTransaction(ctx, func(ctx context.Context) error {
-		n, err := s.negotiations.FindByIDForUpdate(ctx, id)
+		n, err := s.negotiations.FindByIDForUpdate(ctx, routingNumber, id)
 		if err != nil {
 			return errors.InternalErr(err)
 		}
@@ -522,7 +522,7 @@ func (s *PeerOtcService) AcceptFromPeer(ctx context.Context, senderRouting, rout
 	// accept cannot double-charge the premium or double-reserve shares.
 	var n *model.PeerNegotiation
 	if err := s.txManager.WithinTransaction(ctx, func(ctx context.Context) error {
-		locked, err := s.negotiations.FindByIDForUpdate(ctx, id)
+		locked, err := s.negotiations.FindByIDForUpdate(ctx, routingNumber, id)
 		if err != nil {
 			return errors.InternalErr(err)
 		}
@@ -583,7 +583,7 @@ func (s *PeerOtcService) AcceptAsLocal(ctx context.Context, localUserID uint, ne
 	var n *model.PeerNegotiation
 	if negotiationID.RoutingNumber == ourRouting {
 		var err error
-		n, err = s.negotiations.FindByID(ctx, negotiationID.ID)
+		n, err = s.negotiations.FindByID(ctx, negotiationID.RoutingNumber, negotiationID.ID)
 		if err != nil {
 			return nil, errors.InternalErr(err)
 		}
@@ -790,7 +790,7 @@ func (s *PeerOtcService) findLocalMirrorByRemote(
 ) (*model.PeerNegotiation, error) {
 	userIDStr := strconv.FormatUint(uint64(localUserID), 10)
 
-	row, err := s.negotiations.FindByID(ctx, negotiationID.ID)
+	row, err := s.negotiations.FindByID(ctx, negotiationID.RoutingNumber, negotiationID.ID)
 	if err != nil {
 		return nil, errors.InternalErr(err)
 	}
@@ -815,7 +815,7 @@ func (s *PeerOtcService) findLocalNegotiation(
 	userIDStr := strconv.FormatUint(uint64(localUserID), 10)
 	ourRouting := s.peers.OurRoutingNumber()
 
-	row, err := s.negotiations.FindByID(ctx, negotiationID.ID)
+	row, err := s.negotiations.FindByID(ctx, negotiationID.RoutingNumber, negotiationID.ID)
 	if err != nil {
 		return nil, errors.InternalErr(err)
 	}
